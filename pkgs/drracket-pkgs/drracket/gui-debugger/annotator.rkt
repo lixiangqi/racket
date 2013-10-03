@@ -6,7 +6,7 @@
            (prefix-in srfi: srfi/1/search)
            (for-syntax scheme/base)
            (only-in mzscheme [apply plain-apply])
-           )
+           racket/list)
   (provide annotate-stx annotate-for-single-stepping)
 
   (define (arglist-bindings arglist-stx)
@@ -53,7 +53,7 @@
   ;; RECORD-BOUND-ID and RECORD-TOP-LEVEL-ID are simply passed to ANNOTATE-STX.  
   
   (define annotate-for-single-stepping
-    (opt-lambda (stx break? break-before break-after record-bound-id record-top-level-id [source #f])
+    (opt-lambda (stx break? break-before break-after record-bound-id record-top-level-id record-log record-env [source #f])
       (annotate-stx
        stx
        (lambda (debug-info annotated raw is-tail?)
@@ -106,6 +106,8 @@
                            (#%plain-app plain-apply values value-list)))))))
        record-bound-id
        record-top-level-id
+       record-log
+       record-env
        source)))
 
 
@@ -147,7 +149,7 @@
   ;; Naturally, when USE-CASE is 'bind, BOUND-STX and BINDING-STX are equal.  
   ;;
   (define annotate-stx
-    (opt-lambda (stx break-wrap record-bound-id record-top-level-id [source #f])
+    (opt-lambda (stx break-wrap record-bound-id record-top-level-id record-log record-env [source #f])
       
       (define breakpoints (make-hasheq))
       
@@ -173,7 +175,8 @@
                 (quasisyntax/loc stx (module identifier name
                                        #,(rearm
                                           #'mb
-                                          #`(plain-module-begin 
+                                          #`(plain-module-begin
+                                             (#%require (only racket/base))
                                              #,@(map (lambda (e) (module-level-expr-iterator
                                                                   e (list (syntax-e #'identifier)
                                                                           (syntax-source #'identifier))))
@@ -184,8 +187,6 @@
          stx #f
          [(#%provide . provide-specs)
           stx]
-         [(#%declare . declare-specs)
-          stx]
          [else-stx
           (general-top-level-expr-iterator stx module-name )]))
       
@@ -194,10 +195,10 @@
          stx #f
          [(define-values (var ...) expr)
           (begin
-            (for-each (lambda (v) (record-bound-id 'bind v v))
+            (for-each (lambda (v) (record-bound-id 'bind v v) (printf "record-bound-id=~a\n" v))
                       (syntax->list #'(var ...)))
             (quasisyntax/loc stx
-              (begin (define-values (var ...) #,(annotate #`expr '() #t module-name))
+              (begin (define-values (var ...) #,(annotate (syntax-property #`expr 'name-tag #'(var ...)) '() #t module-name #f))
                      #,(if (syntax-source stx)
                            #`(begin (#%plain-app 
                                      #,record-top-level-id '#,module-name #'var (case-lambda
@@ -223,9 +224,11 @@
           ;; a submodule:
           (module-annotate stx)]
          [else
-          (annotate stx '() #f module-name )]))
+          (annotate stx '() #f module-name #f)]))
       
-      (define (annotate expr bound-vars is-tail? module-name)
+      (define (annotate expr bound-vars is-tail? module-name lambda?)
+        
+        ;(printf "expr=~a\n" expr)
         
         (define annotate-break?
           (let ([pos (syntax-position expr)]
@@ -260,22 +263,23 @@
                    [new-rhs (map (lambda (expr)
                                    (annotate expr 
                                              (if letrec? all-bindings bound-vars)
-                                             #f module-name ))
+                                             #f module-name lambda?))
                                  (syntax->list #'(rhs ...)))]
                    [last-body (car (reverse (syntax->list #'bodies)))]
                    [all-but-last-body (reverse (cdr (reverse (syntax->list #'bodies))))]
                    [bodies (append (map (lambda (expr)
-                                          (annotate expr all-bindings #f module-name ))
+                                          (annotate expr all-bindings #f module-name lambda?))
                                         all-but-last-body)
                                    (list (annotate
                                           last-body
                                           all-bindings 
-                                          is-tail? module-name )))]
+                                          is-tail? module-name lambda?)))]
                    [local-debug-info (assemble-debug-info new-bindings new-bindings 'normal #f)]
                    [previous-bindings (previous-bindings bound-vars)])
               (for-each (lambda (id) (record-bound-id 'bind id id)) new-bindings)
               (with-syntax ([(new-rhs/trans ...) new-rhs]
-                            [previous-bindings previous-bindings])
+                            [previous-bindings previous-bindings]
+                            [body last-body])
                 (if letrec?
                     (quasisyntax/loc expr
                       (let ([old-bindings previous-bindings])
@@ -293,6 +297,7 @@
                                                                list*
                                                                #,@local-debug-info
                                                                previous-bindings))])
+                               (#,record-env (quote-syntax body) (map list '#,new-bindings (list #,@local-debug-info)) #t)
                                #,@bodies))))))]))
         
         (define (lambda-clause-annotator clause)
@@ -303,58 +308,80 @@
                    [all-bound-vars (append new-bound-vars bound-vars)]
                    [new-bodies (let loop ([bodies (syntax->list #'bodies)])
                                  (if (equal? '() (cdr bodies))
-                                     (list (annotate (car bodies) all-bound-vars #t module-name ))
-                                     (cons (annotate (car bodies) all-bound-vars #f module-name )
-                                           (loop (cdr bodies)))))])
+                                     (list (annotate (syntax-property (car bodies) 'name-tag (syntax-property clause 'name-tag)) all-bound-vars #t module-name #t))
+                                     (cons (annotate (syntax-property (car bodies) 'name-tag (syntax-property clause 'name-tag)) all-bound-vars #f module-name #t)
+                                           (loop (cdr bodies)))))]
+                   [debug-info-stx (assemble-debug-info new-bound-vars new-bound-vars 'normal #f)]
+                   [arg-pos-info (map syntax-position new-bound-vars)])
               (for-each (lambda (id) (record-bound-id 'bind id id)) new-bound-vars)
-              (quasisyntax/loc clause
-                (arg-list 
-                 (let ([debugger-local-bindings
-                        (#%plain-lambda ()
-                          (#%plain-app
-                           list*
-                           #,@(assemble-debug-info new-bound-vars new-bound-vars 'normal #f)
-                           #,(previous-bindings bound-vars)))])
-                   #,@new-bodies))))]))
-        
+              (with-syntax ([body (first (syntax->list #'bodies))]
+                            [lambda-clause clause])
+                (quasisyntax/loc clause
+                  (arg-list
+                   (let ([debugger-local-bindings
+                          (#%plain-lambda ()
+                            (#%plain-app
+                             list*
+                             #,@debug-info-stx
+                             #,(previous-bindings bound-vars)))]
+                         [captured (continuation-mark-set-first #f 'inspect null)]
+                         [var-table (make-hasheq)]
+                         [trace-table (make-hasheq)])
+                     (unless (empty? '#,arg-pos-info)
+                       (for-each (lambda (pos val) (hash-ref! var-table pos (val))) '#,arg-pos-info (list #,@debug-info-stx)))
+                     ;(printf "app cm: ~a\n" (continuation-mark-set->list (current-continuation-marks) 'app)) 
+                     (with-continuation-mark 'inspect (append captured (list (list (quote-syntax lambda-clause) (#%plain-lambda () var-table))))  
+                       (begin
+                         #,@new-bodies)))))))]))
+
         (define annotated
           (rearm
            expr
            (kernel:kernel-syntax-case
             (disarm expr) #f
             [var-stx (identifier? (syntax var-stx))
-                     (let ([binder (and (syntax-original? expr)
+                     (let* ([original? (syntax-original? expr)]
+                            [transformer-binding (identifier-transformer-binding expr)]
+                            [binder (and original?
                                         (srfi:member expr bound-vars free-identifier=?))])
                        (if binder
                            (record-bound-id 'ref expr (car binder))
                            (record-bound-id 'top-level expr expr))
-                       expr)]
-            
+                       (if lambda?
+                           (quasisyntax/loc expr
+                             (begin
+                               (when #,(and original? 
+                                            (or (not transformer-binding) (eq? transformer-binding 'lexical)))
+                                 (hash-set! var-table (syntax-position #'var-stx) var-stx)
+                                 #;(printf "var-stx=~a, pos=~a\n, hash-table=~a\n" #'var-stx (syntax-position #'var-stx) var-table))
+                               var-stx))
+                           expr))]
+                         
             [(#%plain-lambda . clause)
              (quasisyntax/loc expr 
-               (#%plain-lambda #,@(lambda-clause-annotator #'clause)))]
+               (#%plain-lambda #,@(lambda-clause-annotator (syntax-property #'clause 'name-tag (syntax-property expr 'name-tag)))))]
             
             [(case-lambda . clauses)
              (quasisyntax/loc expr
-               (case-lambda #,@(map lambda-clause-annotator (syntax->list #'clauses))))]
+               (case-lambda #,@(map (lambda (c) (lambda-clause-annotator (syntax-property c 'name-tag (syntax-property expr 'name-tag)))) (syntax->list #'clauses))))]
             
             [(if test then else)
-             (quasisyntax/loc expr (if #,(annotate #'test bound-vars #f module-name )
-                                       #,(annotate #'then bound-vars is-tail? module-name )
-                                       #,(annotate #'else bound-vars is-tail? module-name )))]
+             (quasisyntax/loc expr (if #,(annotate #'test bound-vars #f module-name lambda?)
+                                       #,(annotate #'then bound-vars is-tail? module-name lambda?)
+                                       #,(annotate #'else bound-vars is-tail? module-name lambda?)))]
             
             [(begin . bodies)
              (letrec ([traverse
                        (lambda (lst)
                          (if (and (pair? lst) (equal? '() (cdr lst)))
-                             `(,(annotate (car lst) bound-vars is-tail? module-name ))
-                             (cons (annotate (car lst) bound-vars #f module-name )
+                             `(,(annotate (car lst) bound-vars is-tail? module-name lambda?))
+                             (cons (annotate (car lst) bound-vars #f module-name lambda?)
                                    (traverse (cdr lst)))))])
                (quasisyntax/loc expr (begin #,@(traverse (syntax->list #'bodies)))))]
             
             [(begin0 . bodies)
              (quasisyntax/loc expr (begin0 #,@(map (lambda (expr)
-                                                     (annotate expr bound-vars #f module-name ))
+                                                     (annotate expr bound-vars #f module-name lambda?))
                                                    (syntax->list #'bodies))))]
             
             [(let-values . clause)
@@ -368,7 +395,7 @@
                                 (srfi:member #'var bound-vars free-identifier=?))])
                (when binder
                  (record-bound-id 'set expr (car binder)))
-               (quasisyntax/loc expr (set! var #,(annotate #`val bound-vars #f module-name ))))]
+               (quasisyntax/loc expr (set! var #,(annotate #`val bound-vars #f module-name lambda?))))]
             
             [(quote _) expr]
             
@@ -376,24 +403,42 @@
             
             [(with-continuation-mark key mark body)
              (quasisyntax/loc expr (with-continuation-mark key
-                                     #,(annotate #'mark bound-vars #f module-name )
-                                     #,(annotate #'body bound-vars is-tail? module-name )))]
+                                     #,(annotate #'mark bound-vars #f module-name lambda?)
+                                     #,(annotate #'body bound-vars is-tail? module-name lambda?)))]
             
             [(#%plain-app . exprs)
-             (let ([subexprs (map (lambda (expr) 
-                                    (annotate expr bound-vars #f module-name ))
-                                  (syntax->list #'exprs))])
+             (let* ([subexprs (map (lambda (exp) 
+                                    (annotate (syntax-property exp 'name-tag (syntax-property expr 'name-tag)) bound-vars #f module-name lambda?))
+                                  (syntax->list #'exprs))]
+                    [stx-property (syntax-property expr 'inspect)]
+                    [result-stx (if stx-property
+                                    (with-syntax ([var (third (syntax->list expr))]
+                                                  [num stx-property])
+                                      (quasisyntax/loc expr
+                                        (begin
+                                          (#%plain-app . #,subexprs)
+                                          (printf "---------------------------\n")
+                                          (for ([i (continuation-mark-set-first #f 'inspect null)])
+                                            (printf "continuation clause=~a, table=~a\n" (first i) ((second i))))
+                                          
+                                          (#%plain-app #,record-log #'var var num (continuation-mark-set->list (current-continuation-marks) #,debug-key))
+                                          
+                                          )))
+                                    (quasisyntax/loc expr
+                                      (begin
+                                        (printf "last-app=~a\n" #'exprs)
+                                      (#%plain-app . #,subexprs)))
+                                    )])
                (if (or is-tail? (not (syntax-source expr)))
-                   (quasisyntax/loc expr (#%plain-app . #,subexprs))
+                   result-stx
                    (wcm-wrap (make-debug-info module-name expr bound-vars bound-vars 'normal #f (previous-bindings bound-vars))
-                             (quasisyntax/loc expr (#%plain-app . #,subexprs)))))]
+                             result-stx)))]
             
             [(#%top . var) expr]
             [(#%variable-reference . _) expr]
             
             [else (error 'expr-syntax-object-iterator "unknown expr: ~a"
                          (syntax->datum expr))])))
-        
         (if annotate-break?
             (break-wrap
              (make-debug-info module-name expr bound-vars bound-vars 'at-break #f (previous-bindings bound-vars))
