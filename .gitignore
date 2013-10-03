@@ -2,7 +2,7 @@
 # via the `server', `client', and/or `farm' maefile targets.
 /build/
 /bundle/
-
+/native-pkgs/
 # It's common to configure the PLTADDONDIR to be here.
 /add-on/
 
