@@ -8,13 +8,11 @@
          "syntax-display.rkt"
          "hrule-snip.rkt"
          "text.rkt"
-         "util.rkt"
-         
+         "util.rkt" 
          images/compile-time
          (for-syntax racket/base
                      images/icons/control
-                     images/icons/style)
-         )
+                     images/icons/style))
 (provide make-trace-browser)
 
 (define (make-trace-browser traces)
@@ -23,10 +21,9 @@
                      [width 1200]
                      [height 800]))
   (define widget (new widget% [parent frame]))
+  (send widget set-traces traces)
+  (send widget display-traces)
   (send frame show #t))
-                     
-
-
 
 ;; widget%
 ;; A syntax widget creates its own syntax-controller.
@@ -34,14 +31,36 @@
   (class object%
     (init parent)
 
-    (field [controller (new controller%)])
+    (field [controller (new controller%)]
+           [traces empty])
+    
+    (define log-text
+      (new (class text%
+             
+             (inherit begin-edit-sequence
+                      end-edit-sequence
+                      lock
+                      last-position
+                      insert
+                      )
+             (super-new)
+             
+             (define/public (display-logs logs)
+               (begin-edit-sequence)
+               (lock #f)
+               (delete 0 (last-position))
+               (for-each insert logs)
+               (lock #t)
+               (end-edit-sequence))
+               
+               
+             )))
     
     (define main-panel
       (new vertical-panel% (parent parent)))
     (define split-panel
       (new panel:horizontal-dragable% (parent main-panel)))
     (define view-text (new browser-text%))
-    (define log-text (new (class text% (super-new))))
     (new editor-canvas% [parent split-panel] [editor log-text] [style '(auto-hscroll)])
     (define view-panel (new vertical-panel% [parent split-panel]))
     (define view-canvas (new canvas:color% (parent view-panel) (editor view-text)))
@@ -61,7 +80,10 @@
     (define next-button
       (new button% [label (list navigate-next-icon "Step" 'right)] [parent navigator]))
     
-    
+    (define/public (set-traces t) (set! traces t))
+    (define/public (display-traces) (send log-text display-logs 
+      
+             
     (send view-text set-styles-sticky #f)
     (send view-text lock #t)
     

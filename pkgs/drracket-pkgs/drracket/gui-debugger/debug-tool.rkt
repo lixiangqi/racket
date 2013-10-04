@@ -878,7 +878,7 @@
         
         (define/public (update-logs id-stx val num ccm)
           (send (send (get-frame) get-trace-button) enable #t)
-          (set! traces (cons (list id-stx val num ccm) traces)))
+          (set! traces (append traces (list id-stx val num ccm))))
         
         (define/public (move-to-frame the-frame-num)
           (set-box! frame-num the-frame-num)
