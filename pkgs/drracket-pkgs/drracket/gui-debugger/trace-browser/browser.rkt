@@ -15,7 +15,16 @@
                      images/icons/control
                      images/icons/style)
          )
-(provide widget%)
+(provide make-trace-browser)
+
+(define (make-trace-browser traces)
+  (define frame (new frame%
+                     [label "Trace Browser"]
+                     [width 1200]
+                     [height 800]))
+  (define widget (new widget% [parent frame]))
+  (send frame show #t))
+                     
 
 
 

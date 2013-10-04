@@ -9,12 +9,10 @@
   (class snip%
     (inherit get-admin)
     (define/override (get-extent dc x y bw bh bdescent bspace blspace brspace)
-      (let-values [((h) (get-xheight dc))
-                   ((fw fh) (send dc get-size))]
+      (let [(h (get-xheight dc))]
         (let ([ad-x (box 0)]
               [ad-y (box 0)])
           (send (get-admin) get-view-size ad-x ad-y)
-          #;(set-box?! bw fw)
           (set-box?! bw (max 0 (- (unbox ad-x) (get-xheight dc))))
           (set-box?! bh h))))
     (define/override (draw dc x y left top right bottom dx dy draw-caret)
@@ -33,9 +31,20 @@
     ;; Snip methods
     (define/override (copy)
       (new hrule-snip%))
-    (define/override (write stream)
-      (void))
     (inherit set-snipclass)
     (super-new)
 
     (set-snipclass snip-class)))
+
+(define hrule-snipclass%
+  (class snip-class%
+    (define/override (read stream)
+      (let ([str (send stream get-bytes)])
+        (new hrule-snip%)))
+    (super-new)))
+
+(define snip-class (new hrule-snipclass%))
+(send snip-class set-version 1)
+(send snip-class set-classname
+      (format "~s" '(lib "hrule-snip.rkt" "gui-debugger" "trace-browser")))
+(send (get-the-snip-class-list) add snip-class)

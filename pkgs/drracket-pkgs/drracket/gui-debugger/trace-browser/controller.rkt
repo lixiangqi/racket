@@ -3,7 +3,7 @@
          unstable/class-iop
          unstable/gui/notify
          ffi/unsafe
-         "interfaces.rkt")
+         "interface.rkt")
 (provide controller%)
 
 (define get-marks

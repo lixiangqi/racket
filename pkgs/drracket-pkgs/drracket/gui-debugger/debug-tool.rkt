@@ -17,6 +17,7 @@
          "annotator.rkt"
          "load-sandbox.rkt"
          "syntax-traversal.rkt"
+         "trace-browser/browser.rkt"
          framework
          string-constants
          lang/debugger-language-interface
@@ -684,13 +685,13 @@
                                       add-top-level-binding var rd/wr))]
                              [else (void)]))
                          ; record-log
-                         (lambda (id val num cm)
+                         (lambda (id val num ccm)
                            (cond
                              [(filename->defs (robust-syntax-source id))
                               =>
                               (lambda (defs)
                                 (send (send defs get-tab)
-                                      update-logs id val num cm))]
+                                      update-logs id val num ccm))]
                              [else (void)]))
                          source))
                       (hash-for-each
@@ -829,6 +830,7 @@
                [pos-vec (vector #f)]
                [single-step? (box #t)]
                [top-level-bindings empty]
+               [traces empty]
                [control-panel #f])
         
         (define/public (debug?) want-debug?)
@@ -861,6 +863,7 @@
           (values break-status stack-frames suspend-sema resume-ch in-user-ch single-step? frame-num master))
         
         (define/public (get-single-step-box) single-step?)
+        (define/public (get-traces) traces)
         (define/public (set-single-step?! v) (set-box! single-step? v))
         (define/public (set-break-status stat) (set-box! break-status stat))
         (define/public (add-top-level-binding var rd/wr)
@@ -873,8 +876,9 @@
                    (free-identifier=? var (caar bindings))) (cdar bindings)]
               [else (loop (rest bindings))])))
         
-        (define/public (update-logs id-stx val num cm)
-          (void))
+        (define/public (update-logs id-stx val num ccm)
+          (send (send (get-frame) get-trace-button) enable #t)
+          (set! traces (cons (list id-stx val num ccm) traces)))
         
         (define/public (move-to-frame the-frame-num)
           (set-box! frame-num the-frame-num)
@@ -1059,6 +1063,7 @@
           (set-box! stack-frames #f)
           (set-box! break-status #f)
           (set-box! frame-num 0)
+          (send (send (get-frame) get-trace-button) enable #f)
           (send (send (get-frame) get-pause-button) enable #t)
           (send (send (get-frame) get-step-button) enable #f)
           (send (send (get-frame) get-step-over-button) enable #f)
@@ -1109,6 +1114,7 @@
           (set! single-step? (box #t))
           (set! pos-vec (make-vector (add1 (send (get-defs) last-position)) #f))
           (set! top-level-bindings empty)
+          (set! traces empty)
           (set! resume-ch (make-channel))
           (set! suspend-sema (make-semaphore 1))
           (set! in-user-ch (make-channel))
@@ -1422,7 +1428,7 @@
         (define/augment (disable-evaluation)
           (send debug-button enable #f)
           (inner (void) disable-evaluation))
-
+        
         (define pause-button
           (instantiate button% ()
             [label (make-pause-label this)]
@@ -1505,7 +1511,16 @@
                [parent debug-panel]
                [callback (make-big-step-callback #t)]
                [enabled #f]))
+
+        (define trace-button
+          (instantiate button% ()
+            [label "Trace View"]
+            [parent debug-panel]
+            [callback (lambda (button evt)
+                        (make-trace-browser (send (get-current-tab) get-traces)))]
+            [enabled #f]))        
         
+        (define/public (get-trace-button) trace-button)
         (define/public (get-debug-button) debug-button)
         (define/public (get-pause-button) pause-button)
         (define/public (get-resume-button) resume-button)

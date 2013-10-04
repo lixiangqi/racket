@@ -50,7 +50,7 @@
                 end-position)
 
     (define base-style
-      (send (send view-text get-style-list) find-named-style (editor:get-default-color-style-name)))
+      (send (send text get-style-list) find-named-style (editor:get-default-color-style-name)))
 
     ;; extra-styles : hash[stx => (listof style-delta)]
     ;; Styles to be re-applied on every refresh.
@@ -103,8 +103,6 @@
                (send/i controller selection-manager<%>
                        get-selected-syntax)])
           (uninterruptible
-           (apply-secondary-relation-styles selected-syntax))
-          (uninterruptible
            (apply-selection-styles selected-syntax)))))
 
     ;; get-range : -> range<%>
@@ -140,22 +138,6 @@
       (for ([r (in-list (send/i range range<%> get-ranges selected-syntax))])
         (restyle-range r select-d #t)))
 
-    ;; apply-secondary-relation-styles : selected-syntax -> void
-    ;; If the selected syntax is an identifier, then styles all identifiers
-    ;; in the relation with it.
-    (define/private (apply-secondary-relation-styles selected-syntax)
-      (when (identifier? selected-syntax)
-        (let* ([name+relation
-                (send/i controller secondary-relation<%>
-                        get-identifier=?)]
-               [relation (and name+relation (cdr name+relation))]
-               [secondary-highlight-d (get-secondary-highlight-d)])
-          (when relation
-            (for ([id (in-list (send/i range range<%> get-identifier-list))])
-              (when (relation selected-syntax id)
-                (for ([r (in-list (send/i range range<%> get-ranges id))])
-                  (restyle-range r secondary-highlight-d #t))))))))
-
     ;; restyle-range : (cons num num) style-delta% boolean -> void
     (define/private (restyle-range r style need-undo?)
       (when need-undo? (set! to-undo-styles (cons r to-undo-styles)))
@@ -181,17 +163,7 @@
 
 ;; translate-color : color-string -> color%
 (define (translate-color color-string)
-  (let ([c (make-object color% color-string)])
-    (if (pref:invert-colors?)
-        (let-values ([(r* g* b*)
-                      (lightness-invert (send c red) (send c green) (send c blue))])
-          #|
-          (printf "translate: ~s -> ~s\n"
-                  (list (send c red) (send c green) (send c blue))
-                  (list r* g* b*))
-          |#
-          (make-object color% r* g* b*))
-        c)))
+  (make-object color% color-string))
 
 ;; lightness-invert : uint8 uint8 uint8 -> (values uint8 uint8 uint8)
 (define (lightness-invert r g b)
@@ -273,18 +245,13 @@
     sd))
 
 (define (mk-2-constant-style bow-color [wob-color (translate-color bow-color)])
-  (let ([wob-version (highlight-style-delta wob-color #:translate-color? #f)]
-        [bow-version (highlight-style-delta bow-color #:translate-color? #f)])
-    (λ ()
-      (if (pref:invert-colors?)
-          wob-version
-          bow-version))))
+  (highlight-style-delta bow-color #:translate-color? #f))
 
 (define get-secondary-highlight-d
   (mk-2-constant-style "yellow" "darkgoldenrod"))
 
 (define (get-undo-select/highlight-d)
   (let ([sd (make-object style-delta% 'change-weight 'normal)]
-        [bg (if (pref:invert-colors?) "black" "white")])
+        [bg "white"])
     (send sd set-delta-background bg)
     sd))

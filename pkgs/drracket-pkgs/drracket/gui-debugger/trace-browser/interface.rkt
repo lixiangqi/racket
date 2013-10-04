@@ -53,8 +53,7 @@
 ;; controller<%>
 (define-interface controller<%> (displays-manager<%>
                                  selection-manager<%>
-                                 mark-manager<%>
-                                 secondary-relation<%>)
+                                 mark-manager<%>)
   ())
 
 ;; display<%>
@@ -64,9 +63,6 @@
 
    ;; highlight-syntaxes : (list-of syntax) color -> void
    highlight-syntaxes
-
-   ;; underline-syntaxes : (listof syntax) -> void
-   underline-syntaxes
 
    ;; get-start-position : -> number
    get-start-position
