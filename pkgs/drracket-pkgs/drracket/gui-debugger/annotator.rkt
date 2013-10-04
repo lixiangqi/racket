@@ -53,7 +53,7 @@
   ;; RECORD-BOUND-ID and RECORD-TOP-LEVEL-ID are simply passed to ANNOTATE-STX.  
   
   (define annotate-for-single-stepping
-    (opt-lambda (stx break? break-before break-after record-bound-id record-top-level-id record-log record-env [source #f])
+    (opt-lambda (stx break? break-before break-after record-bound-id record-top-level-id record-log [source #f])
       (annotate-stx
        stx
        (lambda (debug-info annotated raw is-tail?)
@@ -107,7 +107,6 @@
        record-bound-id
        record-top-level-id
        record-log
-       record-env
        source)))
 
 
@@ -149,7 +148,7 @@
   ;; Naturally, when USE-CASE is 'bind, BOUND-STX and BINDING-STX are equal.  
   ;;
   (define annotate-stx
-    (opt-lambda (stx break-wrap record-bound-id record-top-level-id record-log record-env [source #f])
+    (opt-lambda (stx break-wrap record-bound-id record-top-level-id record-log [source #f])
       
       (define breakpoints (make-hasheq))
       
@@ -278,8 +277,7 @@
                    [previous-bindings (previous-bindings bound-vars)])
               (for-each (lambda (id) (record-bound-id 'bind id id)) new-bindings)
               (with-syntax ([(new-rhs/trans ...) new-rhs]
-                            [previous-bindings previous-bindings]
-                            [body last-body])
+                            [previous-bindings previous-bindings])
                 (if letrec?
                     (quasisyntax/loc expr
                       (let ([old-bindings previous-bindings])
@@ -297,7 +295,6 @@
                                                                list*
                                                                #,@local-debug-info
                                                                previous-bindings))])
-                               (#,record-env (quote-syntax body) (map list '#,new-bindings (list #,@local-debug-info)) #t)
                                #,@bodies))))))]))
         
         (define (lambda-clause-annotator clause)
