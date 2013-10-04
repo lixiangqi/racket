@@ -9,68 +9,17 @@
 
 (provide text:hover<%>
          text:hover-drawings<%>
-         text:arrows<%>
 
          text:hover-mixin
          text:hover-drawings-mixin
          text:tacking-mixin
-         text:arrows-mixin
          text:region-data-mixin
          text:clickregion-mixin
          browser-text%)
 
-(define arrow-cursor (make-object cursor% 'arrow))
-
-(define arrow-brush
-  (send the-brush-list find-or-create-brush "white" 'solid))
-(define (tacked-arrow-brush color)
-  (send the-brush-list find-or-create-brush color 'solid))
-
-(define billboard-brush
-  (send the-brush-list find-or-create-brush "white" 'solid))
-
-(define white (send the-color-database find-color "white"))
 
 ;; A Drawing is (make-drawing (??? -> void) (box boolean))
 (define-struct drawing (draw tacked?))
-
-(define-struct idloc (start end id))
-
-(define (mean x y)
-  (/ (+ x y) 2))
-
-;; save+restore pen, brush, also smoothing
-(define-syntax with-saved-pen&brush
-  (syntax-rules ()
-    [(with-saved-pen&brush dc . body)
-     (save-pen&brush dc (lambda () . body))]))
-
-(define (save-pen&brush dc thunk)
-  (let ([old-pen (send dc get-pen)]
-        [old-brush (send dc get-brush)]
-        [old-smoothing (send dc get-smoothing)])
-    (begin0 (thunk)
-      (send* dc
-        (set-pen old-pen)
-        (set-brush old-brush)
-        (set-smoothing old-smoothing)))))
-
-(define-syntax with-saved-text-config
-  (syntax-rules ()
-    [(with-saved-text-config dc . body)
-     (save-text-config dc (lambda () . body))]))
-
-(define (save-text-config dc thunk)
-  (let ([old-font (send dc get-font)]
-        [old-color (send dc get-text-foreground)]
-        [old-background (send dc get-text-background)]
-        [old-mode (send dc get-text-mode)])
-    (begin0 (thunk)
-      (send* dc
-        (set-font old-font)
-        (set-text-foreground old-color)
-        (set-text-background old-background)
-        (set-text-mode old-mode)))))
 
 ;; Interfaces
 
@@ -87,10 +36,6 @@
     add-hover-drawing
     get-position-drawings))
 
-(define text:arrows<%>
-  (interface (text:hover-drawings<%>)
-    add-arrow
-    add-billboard))
 
 ;; Mixins
 
@@ -243,97 +188,7 @@
         (hash-remove! tacked-table (drawing-draw d))
         (set-box! (drawing-tacked? d) #f)))))
 
-(define text:arrows-mixin
-  (mixin (text:hover-drawings<%>) (text:arrows<%>)
-    (inherit position-location
-             add-hover-drawing
-             find-wordbreak)
-
-    (define/public (add-billboard pos1 pos2 str color-name)
-      (define color (send the-color-database find-color color-name))
-      (let ([draw 
-             (lambda (text dc left top right bottom dx dy)
-               (let-values ([(x y) (range->mean-loc pos1 pos1)]
-                            [(fw fh _d _v) (send dc get-text-extent "y")])
-                 (with-saved-pen&brush dc
-                   (with-saved-text-config dc
-                     (send* dc
-                       (set-pen color 1 'solid)
-                       (set-brush billboard-brush)
-                       (set-text-mode 'solid)
-                       (set-font (billboard-font dc))
-                       (set-text-foreground color))
-                     (let-values ([(w h d v) (send dc get-text-extent str)]
-                                  [(adj-y) fh]
-                                  [(mini) _d])
-                       (send* dc
-                         (set-smoothing 'smoothed)
-                         (draw-rounded-rectangle
-                          (+ x dx)
-                          (+ y dy adj-y)
-                          (+ w mini mini)
-                          (+ h mini mini))
-                         (draw-text str (+ x dx mini) (+ y dy mini adj-y))))))))])
-        (add-hover-drawing pos1 pos2 draw)))
-
-    (define/public (add-arrow from1 from2 to1 to2 color-name label where)
-      (define color (send the-color-database find-color color-name))
-      (define tack-box (box #f))
-      (unless (and (= from1 to1) (= from2 to2))
-        (let ([draw 
-               (lambda (text dc left top right bottom dx dy)
-                 (let-values ([(startx starty) (range->mean-loc from1 from2)]
-                              [(endx endy) (range->mean-loc to1 to2)]
-                              [(fw fh _d _v) (send dc get-text-extent "x")]
-                              [(lw lh ld _V) (send dc get-text-extent (or label "x"))])
-                   (with-saved-pen&brush dc
-                     (with-saved-text-config dc
-                       (send dc set-pen color 1 'solid)
-                       (send dc set-brush
-                             (if (unbox tack-box)
-                                 (tacked-arrow-brush color)
-                                 arrow-brush))
-                       (draw-arrow dc startx
-                                   (+ starty (/ fh 2))
-                                   endx
-                                   (+ endy (/ fh 2))
-                                   dx dy)
-                       (when label
-                         (let* ([lx (+ endx dx fw)]
-                                [ly (- (+ endy dy) fh)])
-                           (send* dc
-                             (set-brush billboard-brush)
-                             (set-font (billboard-font dc))
-                             (set-text-foreground color)
-                             (set-smoothing 'smoothed)
-                             (draw-rounded-rectangle (- lx ld) (- ly ld)
-                                                     (+ lw ld ld) (+ lh ld ld))
-                             (draw-text label lx ly))))))))])
-          (add-hover-drawing from1 from2 draw tack-box)
-          (add-hover-drawing to1 to2 draw tack-box))))
-
-    (define/private (position->location p)
-      (define xbox (box 0.0))
-      (define ybox (box 0.0))
-      (position-location p xbox ybox)
-      (values (unbox xbox) (unbox ybox)))
-
-    (define/private (?-font dc)
-      (let ([size (send (send dc get-font) get-point-size)])
-        (send the-font-list find-or-create-font size 'default 'normal 'bold)))
-
-    (define/private (billboard-font dc)
-      (let ([size (send (send dc get-font) get-point-size)])
-        (send the-font-list find-or-create-font size 'default 'normal)))
-
-    (define/private (range->mean-loc pos1 pos2)
-      (let*-values ([(loc1x loc1y) (position->location pos1)]
-                    [(loc2x loc2y) (position->location pos2)]
-                    [(locx) (mean loc1x loc2x)]
-                    [(locy) (mean loc1y loc2y)])
-        (values locx locy)))
-
-    (super-new)))
+   
 
 #|
 text:clickregion-mixin
@@ -411,59 +266,18 @@ Like clickbacks, but:
            (define pos (get-event-position ev))
            (let ([cb (and pos (interval-map-ref right-clickbacks pos #f))])
              (when cb (cb pos))))))
-      (super on-local-event ev))
-
-    (define/override (adjust-cursor ev)
-      (define pos (get-event-position ev))
-      (define cb (and pos (interval-map-ref clickbacks pos #f)))
-      (if cb
-          arrow-cursor
-          (super adjust-cursor ev)))))
-
-
-#|
-(define text:hover-identifier<%>
-  (interface ()
-    get-hovered-identifier
-    set-hovered-identifier
-    listen-hovered-identifier))
-
-(define text:hover-identifier-mixin
-  (mixin (text:hover<%>) (text:hover-identifier<%>)
-    (define-notify hovered-identifier (new notify-box% (value #f)))
-
-    (define idlocs null)
-
-    (define/public (add-identifier-location start end id)
-      (set! idlocs (cons (make-idloc start end id) idlocs)))
-
-    (define/public (delete-all-identifier-locations)
-      (set! idlocs null)
-      (set-hovered-identifier #f))
-
-    (define/override (update-hover-position pos)
-      (super update-hover-position pos)
-      (let search ([idlocs idlocs])
-        (cond [(null? idlocs) (set-hovered-identifier #f)]
-              [(and (<= (idloc-start (car idlocs)) pos)
-                    (< pos (idloc-end (car idlocs))))
-               (set-hovered-identifier (idloc-id (car idlocs)))]
-              [else (search (cdr idlocs))])))
-    (super-new)))
-|#
-
+      (super on-local-event ev))))
 
 (define browser-text%
   (let ([browser-text-default-style-name "widget.rkt::browser-text% basic"])
     (class (text:clickregion-mixin
-            (text:arrows-mixin
              (text:tacking-mixin
               (text:hover-drawings-mixin
                (text:hover-mixin
                 (text:region-data-mixin
                  (text:hide-caret/selection-mixin
                   (text:foreground-color-mixin
-                   (editor:standard-style-list-mixin text:basic%)))))))))
+                   (editor:standard-style-list-mixin text:basic%))))))))
       (inherit set-autowrap-bitmap get-style-list)
       (define/override (default-style-name) browser-text-default-style-name)
       (super-new (auto-wrap #t))

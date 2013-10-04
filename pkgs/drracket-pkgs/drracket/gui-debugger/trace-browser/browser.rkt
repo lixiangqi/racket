@@ -9,9 +9,6 @@
          "hrule-snip.rkt"
          "text.rkt"
          "util.rkt"
-         "../util/eomap.rkt"
-         "../util/logger.rkt"
-         "../util/mpi.rkt"
          
          images/compile-time
          (for-syntax racket/base
