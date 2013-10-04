@@ -634,11 +634,7 @@
                (when (eq? (filename->defs (and (syntax? orig-exp)
                                                (syntax-source orig-exp)))
                           (send (get-tab) get-defs))
-                 (traverse-stx orig-exp)
-                 ;(printf "pos-table=~a\n" (get-pos-table))
-                 
-                 )
-               
+                 (traverse-stx orig-exp))
                (define top-e (expand-syntax-to-top-form exp))
                (define fn (and (syntax? orig-exp)
                                (let ([src (syntax-source orig-exp)])
@@ -653,7 +649,7 @@
                    (eval/annotations
                     top-e
                     ; annotate-module?
-                    (lambda (fn m)
+                    (lambda (fn m) 
                       (annotate-this-module? fn))
                     ; annotator
                     (lambda (stx)
@@ -689,21 +685,12 @@
                              [else (void)]))
                          ; record-log
                          (lambda (id val num cm)
-                           (cond 
+                           (cond
                              [(filename->defs (robust-syntax-source id))
                               =>
                               (lambda (defs)
                                 (send (send defs get-tab)
                                       update-logs id val num cm))]
-                             [else (void)]))
-                         ; record-env
-                         (lambda (expr binding let?)
-                           (cond
-                             [(filename->defs (robust-syntax-source expr))
-                              =>
-                              (lambda (defs)
-                                (send (send defs get-tab)
-                                      add-env-binding binding let?))]
                              [else (void)]))
                          source))
                       (hash-for-each
@@ -797,26 +784,6 @@
                        ; break-before
                        (lambda (top-mark ccm)
                          (let* ([debug-marks (continuation-mark-set->list ccm debug-key)])
-                         #;(let ([expr (mark-source top-mark)]
-                               [top ""])
-                           (cond
-                             ; should succeed unless the user closes a slave tab during debugging
-                             [(and expr (filename->defs (syntax-source expr)))
-                              => (lambda (defs)
-                                   (set! top (trim-expr-str
-                                    (if (syntax-position expr)
-                                        (send defs get-text
-                                              (sub1 (syntax-position expr))
-                                              (+ -1 (syntax-position expr) (syntax-span expr)))
-                                        "??")
-                                    15)))]
-                             ["??"])
-                           (printf "top-mark: ~a\n" top))
-                           
-                           
-                           
-                           
-                           ;---------
                            (send (get-tab) suspend oeh (cons top-mark debug-marks) 'entry-break)))
                        ; break-after
                        (case-lambda
@@ -862,11 +829,7 @@
                [pos-vec (vector #f)]
                [single-step? (box #t)]
                [top-level-bindings empty]
-               [env-bindings empty]
-               [log-pairs empty]
-               [outmost-cms empty]
-               [id-counts (make-hasheq)]
-               [control-panel empty])
+               [control-panel #f])
         
         (define/public (debug?) want-debug?)
         (define/public (get-master) master)
@@ -879,7 +842,6 @@
             [(v) (set! want-suspend-on-break? v)]))
         (define/public (get-stack-frames)
           (unbox stack-frames))
-        (define/public (get-outmost-cms) outmost-cms)
         (define/public (get-pos-vec) pos-vec)
         (define/public (get-breakpoints) breakpoints)
         (define/public (get-break-status) (unbox break-status))
@@ -901,62 +863,8 @@
         (define/public (get-single-step-box) single-step?)
         (define/public (set-single-step?! v) (set-box! single-step? v))
         (define/public (set-break-status stat) (set-box! break-status stat))
-        
         (define/public (add-top-level-binding var rd/wr)
           (set! top-level-bindings (cons (cons var rd/wr) top-level-bindings)))
-        
-        (define/public (update-logs id-stx val num cm)
-          (let* ([pos (syntax-position id-stx)]
-                 [count (hash-ref id-counts pos (lambda () 0))])
-            (when (< count num)
-              (hash-set! id-counts pos (add1 count))
-              (let* ([trimmed-exprs
-                      (map (lambda (frame)
-                             (let ([expr (mark-source frame)])
-                               (cond 
-                                 [(and expr (filename->defs (syntax-source expr)))
-                                  => (lambda (defs)
-                                       (trim-expr-str
-                                        (if (syntax-position expr)
-                                            (send defs get-text
-                                                  (sub1 (syntax-position expr))
-                                                  (+ -1 (syntax-position expr) (syntax-span expr)))
-                                            "??")
-                                        15))]
-                                 ["??"])))
-                           cm)]
-                     [last-proc (last cm)]
-                     [last-trimmed-expr (last trimmed-exprs)]
-                     [quad (list id-stx val trimmed-exprs cm)])
-                (if (empty? outmost-cms)
-                    (begin
-                      (set! outmost-cms (list (list last-proc last-trimmed-expr)))
-                      (set! log-pairs (list (list quad))))
-                    (if (eq? last-proc (car (last outmost-cms)))
-                        (set! log-pairs (append (take log-pairs (sub1 (length log-pairs)))
-                                                (list (append (last log-pairs) (list quad)))))
-                        (begin
-                          (set! outmost-cms (append outmost-cms (list (list last-proc last-trimmed-expr))))
-                          (set! log-pairs (append log-pairs (list (list quad)))))))
-                (update-trace-editor)))))
-        
-        (define/public (update-trace-editor)
-          (if (empty? outmost-cms)
-              (send (get-frame) clear-trace-editor)
-              (begin
-                (send (send (get-frame) get-sort-button) enable #t)
-                (send (send (get-frame) get-call-editor) display-call-proc (map second outmost-cms) #f #f)
-                (send (send (get-frame) get-output-editor) set-var-stack-exprs log-pairs)
-                (send (send (get-frame) get-view-canvas) set-clear-flag #t)
-                (send (send (get-frame) get-view-canvas) refresh))))
-        
-        (define/public (add-env-binding binding let?)
-          ;(printf "add-binding: ~a\n" binding)
-          (if let?
-              (void)
-              (void)
-              #;(printf "binding: ~a\n" binding)))
-        
         (define/public (lookup-top-level-var var failure-thunk)
           (let loop ([bindings top-level-bindings])
             (cond
@@ -964,6 +872,9 @@
               [(or (bound-identifier=? var (caar bindings))
                    (free-identifier=? var (caar bindings))) (cdar bindings)]
               [else (loop (rest bindings))])))
+        
+        (define/public (update-logs id-stx val num cm)
+          (void))
         
         (define/public (move-to-frame the-frame-num)
           (set-box! frame-num the-frame-num)
@@ -1145,10 +1056,6 @@
               (send (get-defs) invalidate-bitmap-cache))))
         
         (define/public (resume-gui)
-          (update-trace-editor)
-          (resume-gui-no-log))
-        
-        (define/public (resume-gui-no-log)
           (set-box! stack-frames #f)
           (set-box! break-status #f)
           (set-box! frame-num 0)
@@ -1161,11 +1068,6 @@
           (send (get-frame) clear-stack-frames/vars)
           (send (get-defs) invalidate-bitmap-cache))
         
-        (define/public (resume-handler)
-          (let ([v (get-break-status)])
-            (when (sync/timeout 1 (channel-put-evt resume-ch (and (pair? v) (cdr v))))
-              (resume-gui-no-log))))
-        
         (define/public suspend
           ;; ==called from user thread==
           (lambda (break-handler frames [status #f])
@@ -1174,14 +1076,12 @@
             (cond
               [(semaphore-try-wait? suspend-sema)
                (parameterize ([current-eventspace (send (get-frame) get-eventspace)])
-                 (queue-callback (lambda ()
-                                   (update-trace-editor)
-                                   (suspend-gui frames status #t))))
+                 (queue-callback (lambda () (suspend-gui frames status #t))))
                (with-handlers ([exn:break?
                                 (lambda (exn)
                                   (let ([wait-sema (make-semaphore)])
                                     (parameterize ([current-eventspace (send (get-frame) get-eventspace)])
-                                      (queue-callback (lambda ()
+                                      (queue-callback (lambda () 
                                                         (resume-gui)
                                                         (semaphore-post wait-sema))))
                                     (semaphore-wait wait-sema))
@@ -1215,9 +1115,6 @@
           (set! break-status (box #f))
           (set! want-suspend-on-break? #f)
           (set! stack-frames (box #f))
-          (set! outmost-cms empty)
-          (set! log-pairs empty)
-          (set! id-counts (make-hasheq))
           (send (get-ints) set-tab this))
         
         (define/augment (on-close)
@@ -1255,10 +1152,6 @@
     (define make-step-label (bitmap-label-maker "Step" step-bitmap))
     (define make-over-label (bitmap-label-maker "Over" over-bitmap))
     (define make-out-label (bitmap-label-maker "Out" out-bitmap))
-    
-    (define highlight-color (make-object color% 207 255 207))
-    (define bold-sd (make-object style-delta% 'change-weight 'bold))
-    (define normal-sd (make-object style-delta% 'change-weight 'normal))
     
     (define (debug-unit-frame-mixin super%)
       (class super%
@@ -1372,40 +1265,15 @@
           (send variables-text lock #t)
           (send variables-text end-edit-sequence))
         
-        (define/public (clear-trace-editor)
-          (send num-button enable #f)
-          (send sort-button enable #f)
-          (send call-editor begin-edit-sequence)
-          (send call-editor lock #f)
-          (send call-editor delete 0 (send call-editor last-position))
-          (send call-editor lock #t)
-          (send call-editor end-edit-sequence)          
-          (send output-editor begin-edit-sequence)
-          (send output-editor lock #f)
-          (send output-editor delete 0 (send output-editor last-position))
-          (send output-editor lock #t)
-          (send output-editor end-edit-sequence)
-          (send view-canvas set-clear-flag #t)
-          (send view-canvas refresh))
-        
-        (define/private (update-panel)
-          (if (zero? (send tab-panel get-selection))
-              (send swapping-panel active-child stack-view-panel)
-              (send swapping-panel active-child trace-view-panel)))
-        
         (define debug-grandparent-panel 'uninitialized-debug-grandparent-panel)
         (define debug-parent-panel 'uninitialized-debug-parent-panel)
         (define debug-panel 'uninitialized-debug-panel)
-        (define log-button-panel 'uninitialized-log-button-panel)
-        (define tab-panel 'uninitialized-tab-panel)
-        (define swapping-panel 'uninitialized-swapping-panel)
         (define stack-view-panel 'uninitialized-stack-view-panel)
         (define stack-frames 'uninitialized-stack-frames)
         (define variables-text 'uninitialized-variables-text)
-        (define trace-view-panel 'uninitialized-trace-view-panel)
-        (define call-editor 'uninitialized-call-editor)
-        (define output-editor 'uninitialized-output-editor)
-        (define view-canvas 'uninitialized-view-canvas)
+        (define highlight-color (make-object color% 207 255 207))
+        (define bold-sd (make-object style-delta% 'change-weight 'bold))
+        (define normal-sd (make-object style-delta% 'change-weight 'normal))
         (define mouse-over-frame #f)
         (define/override (get-definitions/interactions-panel-parent)
           (set! debug-grandparent-panel
@@ -1424,19 +1292,11 @@
                          (inner (void) after-percentage-change))
                        (super-new))
                      [parent (super get-definitions/interactions-panel-parent)]))
-          (set! tab-panel
-                (new tab-panel%
-                     [parent debug-grandparent-panel]
-                     [callback (λ (x y) (update-panel))]
-                     [choices (list "Stack View" "Trace View")]
-                     [min-width 160]
-                     [stretchable-width #f]))
-          (set! swapping-panel 
-                (new panel:single% 
-                     [parent tab-panel]))
           (set! stack-view-panel
                 (new panel:vertical-dragable%
-                     [parent swapping-panel]))
+                     [parent debug-grandparent-panel]
+                     [min-width 160]
+                     [stretchable-width #f]))
           (set! stack-frames
                 (new (class text%
                        (super-new)
@@ -1502,342 +1362,6 @@
           (let ([variables-panel (make-object vertical-panel% stack-view-panel)])
             (new message% [parent variables-panel] [label "Variables"])
             (new editor-canvas% [parent variables-panel] [editor variables-text] [style '(auto-hscroll)]))
-          
-          ;; traces view panel
-          (set! trace-view-panel
-                (new panel:vertical-dragable%
-                     [parent swapping-panel]))
-          ;; xiangqi li
-          (set! call-editor
-                (new (class text%
-                       (inherit begin-edit-sequence
-                                end-edit-sequence
-                                lock
-                                delete
-                                insert
-                                last-position
-                                dc-location-to-editor-location
-                                find-line
-                                find-position
-                                line-paragraph
-                                change-style
-                                paragraph-start-position
-                                paragraph-end-position
-                                scroll-to-position)
-                       
-                       (define call-procs empty)
-                       (define mark-num 0)
-                       
-                       (define/public (display-call-proc procs mark? stopped?)
-                         (begin-edit-sequence)
-                         (lock #f)
-                         (set! call-procs procs)
-                         (unless mark?
-                           (set! mark-num (sub1 (length procs))))
-                         (unless stopped?
-                           (delete 0 (last-position))
-                           (for-each (lambda (proc) (insert (format "~a\n" proc))) procs))
-                         (change-style normal-sd 0 (last-position))
-                         (change-style bold-sd
-                                       (paragraph-start-position mark-num)
-                                       (paragraph-end-position mark-num))
-                         (lock #t)
-                         (end-edit-sequence))
-                       
-                       (define/public (move-to-frame the-frame-num)
-                         (set! mark-num the-frame-num) 
-                         (display-call-proc call-procs #t #t))                       
-                       
-                       (define/override (on-event evt)
-                         (let*-values ([(x y) (dc-location-to-editor-location (send evt get-x) (send evt get-y))]
-                                       [(line) (find-line y)]
-                                       [(paragraph) (line-paragraph line)])
-                           (case (send evt get-event-type)
-                             [(left-down)
-                              (when (< paragraph (length call-procs))
-                                (move-to-frame paragraph)
-                                (send num-button enable #f)
-                                (send output-editor set-call-num paragraph)
-                                (send view-canvas set-clear-flag #t)
-                                (send view-canvas refresh))])))                       
-                       
-                       
-                       (super-new))))
-          ;; xiangqi li
-          (set! output-editor
-                (new (class text%
-         
-                       (inherit begin-edit-sequence
-                                end-edit-sequence
-                                lock
-                                delete
-                                insert
-                                last-position
-                                dc-location-to-editor-location
-                                find-line
-                                find-position
-                                line-paragraph
-                                change-style
-                                paragraph-start-position
-                                paragraph-end-position
-                                scroll-to-position)
-         
-                       (super-new)
-         
-                       (define var-stack-expressions #f)
-                       (define var-cm #f)
-                       (define highlight-defs #f)
-                       (define highlight-start #f)
-                       (define highlight-end #f)
-                       (define mouse-over-var #f)
-                       (define mark-nums empty)
-                       (define trace-logs empty)
-                       
-                       (define/public (get-trace-logs) trace-logs)
-
-                       (define/public (display-logs logs mark? stopped?)
-                         (begin-edit-sequence)
-                         (lock #f)
-                         (unless stopped?
-                           (delete 0 (last-position))
-                           (for-each (lambda (log) (insert log)) logs))
-                         (when mark?
-                           (change-style normal-sd 0 (last-position))
-                           (for ([n mark-nums])
-                             (change-style bold-sd
-                                           (paragraph-start-position n)
-                                           (paragraph-end-position n))))
-                         (lock #t)
-                         (end-edit-sequence))
-                       
-                       (define/public (sort-logs)
-                         (set! var-cm (sort var-cm (lambda (x y)
-                                                     (string<? (format "~a" (syntax->datum (car x)))
-                                                               (format "~a" (syntax->datum (car y)))))))
-                         (set! trace-logs (map (lambda (i) (format "~a: ~v\n" (syntax->datum (first i)) (second i))) var-cm))
-                         (display-logs trace-logs #f #f))
-                       
-                       (define/public (get-selected-var/size)
-                         (let*-values ([(var) (first (list-ref var-cm (car mark-nums)))]
-                                       [(target other) (partition (lambda (c)
-                                                                    (eq? (first c) var))
-                                                                  var-cm)])
-                           (values (syntax->datum var) (length target))))
-                       
-                       (define/public (trim-trace-size n size)
-                         (when n
-                           (if (> (string->number n) size)
-                               (message-box "Wrong input" "Number exceeds maximum size!" #f '(ok caution))
-                               (void))))
-                                    
-                             ;(printf "target: ~a, other: ~a\n" target other))))
-                           ;(printf "var: ~a\n" (syntax->datum (first (list-ref var-cm (car mark-nums)))))))
-
-                       (define/public (move-to-frame the-frame-num)
-                         (set! mark-nums (list the-frame-num))
-                         (display-logs trace-logs #t #t))
-         
-                       (define/public (set-var-stack-exprs l)
-                         (set! var-stack-expressions l)
-                         (set-call-num (sub1 (length l))))
-                       
-                       (define/public (set-call-num n)
-                         (set! var-cm (list-ref var-stack-expressions n))
-                         (set! trace-logs (map (lambda (i) (format "~a: ~v\n" (syntax->datum (first i)) (second i))) var-cm))
-                         (display-logs trace-logs #f #f))
-                       
-                       (define/public (mark-trace-with-same-continuations frames var-num frame-num exprs)
-                         (let* ([source (take (list-ref frames var-num) frame-num)]
-                                [src-length (length source)]
-                                [same? #t])
-                           (set! mark-nums empty)
-                           (for ([j (in-range (length frames))])
-                             (when (<= src-length (length (list-ref frames j)))
-                               (set! same? #t)
-                               (for ([i (in-range (length source))])
-                                 (unless (eq? (list-ref (list-ref frames j) i) (list-ref source i))
-                                   (set! same? #f)))
-                               (when same?
-                                 (send num-button enable #f)
-                                 (set! mark-nums (append mark-nums (list j))))))
-                           (display-logs trace-logs #t #t)))
-         
-                       (define/override (on-event evt)
-                         (let*-values ([(x y) (dc-location-to-editor-location (send evt get-x) (send evt get-y))]
-                                       [(line) (find-line y)]
-                                       [(paragraph) (line-paragraph line)]
-                                       [(var) (and var-cm
-                                                   (> (length var-cm) paragraph)
-                                                   (first (list-ref var-cm paragraph)))])
-                           (case (send evt get-event-type)
-                             [(enter motion)
-                              (when (and mouse-over-var (not (eq? paragraph mouse-over-var)))
-                                (send highlight-defs unhighlight-range
-                                      highlight-start highlight-end highlight-color)
-                                (set! mouse-over-var #f))
-                              (when (and var (not (eq? paragraph mouse-over-var)))
-                                (cond 
-                                  [(filename->defs (syntax-source var))
-                                   => (lambda (defs)
-                                        (set! mouse-over-var paragraph)
-                                        (set! highlight-defs defs)
-                                        (set! highlight-start (sub1 (syntax-position var)))
-                                        (set! highlight-end (+ -1 (syntax-position var) (syntax-span var)))
-                                        (send defs highlight-range
-                                              highlight-start highlight-end highlight-color)
-                                        (cond
-                                          [(send defs get-filename)
-                                           => (lambda (fn) (handler:edit-file fn))])
-                                        (send defs scroll-to-position (syntax-position var)))]))]
-                             [(leave)
-                              (when mouse-over-var
-                                (send highlight-defs unhighlight-range
-                                      highlight-start highlight-end highlight-color)
-                                (set! mouse-over-var #f))]
-                             [(left-down)
-                              (when (< paragraph (length var-cm))
-                                (move-to-frame paragraph)
-                                (send num-button enable #t)
-                                (send view-canvas update-stack (map third var-cm) (map fourth var-cm))
-                                (send view-canvas set-var-num paragraph))])))
-                    
-                       )))
-          ;; xiangqi li
-          (define env-canvas%
-            (class canvas%
-    
-              (inherit get-dc
-                       refresh)
-    
-              (super-new)
-    
-              (define var-num 0)
-              (define stack-size 0)
-              (define stack-exprs empty)
-              (define stack-expr empty)
-              (define stack-frames #f)
-              (define width 0)
-              (define start-x 5)
-              (define start-y 50)
-              (define rec-height 20)
-              (define text-x (+ start-x 4))
-              (define render-call-stack void)
-              (define mouse-over-stack-frame #f)
-              (define highlight-defs #f)
-              (define highlight-start #f)
-              (define highlight-end #f)
-              (define clear-flag #f)
-    
-              (define/private (get-text-width str)
-                (first (call-with-values (lambda () (send (get-dc) get-text-extent str)) list)))
-    
-              (define/public (get-max-text-width l)
-                (apply max (map (lambda (x) (get-text-width x)) l)))
-              
-              (define/public (update-stack exprs frames)
-                (set! stack-exprs exprs)
-                (set! stack-frames frames))
-              
-              (define/public (set-clear-flag b) (set! clear-flag b))
-              
-              (define/public (set-var-num n)
-                (set! var-num n)
-                (set! stack-expr (list-ref stack-exprs var-num))
-                (set! stack-size (length stack-expr))
-                (set! width (+ (get-max-text-width stack-expr) 20))
-                (set! render-call-stack (lambda () (render-call-stack-unit 0)))
-                (set-clear-flag #f)
-                (refresh))
-              
-              (define/private (render-call-stack-unit i)
-                (let ([current-y (+ start-y (* i rec-height))])
-                  (when (< i stack-size)
-                    (send (get-dc) draw-rectangle start-x current-y width rec-height)
-                    (send (get-dc) draw-text (list-ref stack-expr i) text-x current-y)
-                    (render-call-stack-unit (add1 i)))))
-        
-              (define/private (mouse-over-frame? x y start-x width start-y frame-size)
-                (define (x-in-range? x) (and (>= x start-x)
-                                             (<= x (+ start-x width))))
-                (define (y-in-range? y i)
-                  (if (and (<= (+ start-y (* i rec-height)) y)
-                           (<= y (+ start-y (* i rec-height) rec-height))
-                           (< i frame-size))
-                      (values #t i)
-                      (if (>= i frame-size)
-                          (values #f i)
-                          (y-in-range? y (+ i 1)))))
-                (if (x-in-range? x)
-                    (y-in-range? y 0)
-                    (values #f frame-size)))
-        
-              (define/override (on-event evt)
-                (let*-values ([(event-x) (send evt get-x)]
-                              [(event-y) (send evt get-y)]
-                              [(over-stack? stack-frame-num)
-                               (mouse-over-frame? event-x event-y start-x width start-y stack-size)]
-                              [(frame) (and over-stack?
-                                            (> stack-size stack-frame-num)
-                                            (list-ref (list-ref stack-frames var-num) stack-frame-num))]
-                              [(expr) (and frame (mark-source frame))])
-                  (case (send evt get-event-type)
-                    [(enter motion)
-                     (when (and mouse-over-stack-frame (not (eq? stack-frame-num mouse-over-stack-frame)))
-                       (send highlight-defs unhighlight-range
-                             highlight-start highlight-end highlight-color)
-                       (set! mouse-over-stack-frame #f))
-                     (when (and expr (not (eq? mouse-over-stack-frame stack-frame-num)))
-                       (cond
-                         [(filename->defs (syntax-source expr))
-                          => (lambda (defs)
-                               (set! mouse-over-stack-frame stack-frame-num)
-                               (set! highlight-defs defs)
-                               (set! highlight-start (sub1 (syntax-position expr)))
-                               (set! highlight-end (+ -1 (syntax-position expr)
-                                                      (syntax-span expr)))
-                               (send defs highlight-range
-                                     highlight-start highlight-end highlight-color)
-                               (cond
-                                 [(send defs get-filename)
-                                  => (lambda (fn) (handler:edit-file fn))])
-                               (send defs scroll-to-position (syntax-position expr)))]))]
-                    [(leave)
-                     (when mouse-over-stack-frame
-                       (send highlight-defs unhighlight-range
-                             highlight-start highlight-end highlight-color)
-                       (set! mouse-over-stack-frame #f))]
-                    [(left-down)
-                     (when (and stack-frame-num expr)
-                       (send output-editor move-to-frame stack-frame-num)
-                       (send output-editor mark-trace-with-same-continuations
-                             (map reverse stack-frames)
-                             var-num
-                             (- stack-size stack-frame-num)
-                             (map reverse stack-exprs)))]
-              
-                    )))    
-      
-              (define/override (on-paint)
-                (if clear-flag
-                    (send (get-dc) clear)
-                    (render-call-stack)))
-
-              ))
-          
-          (let ([ver-panel (make-object vertical-panel% trace-view-panel)])
-            (set! log-button-panel (instantiate horizontal-panel% ()
-                                     (parent ver-panel)
-                                     (stretchable-height #f)
-                                     (alignment '(right center))
-                                     (style '(border))))
-            (new message% [parent log-button-panel] [label "Log"] [stretchable-width #t])
-            (let ([log-panel (new panel:horizontal-dragable% [parent ver-panel])])
-              (new editor-canvas% [parent log-panel] [editor call-editor] [style '(auto-hscroll)])
-              (new editor-canvas% [parent log-panel] [editor output-editor] [style '(auto-hscroll)])))
-          (let ([env-view-panel (make-object vertical-panel% trace-view-panel)])
-            (new message% [parent env-view-panel] [label "Visualization"])
-            (set! view-canvas (new env-canvas% [parent env-view-panel])))
-          
           ;; parent of panel with debug buttons
           (set! debug-parent-panel
                 (make-object vertical-panel% debug-grandparent-panel))
@@ -1854,24 +1378,20 @@
                                (hide-debug))])
           ;; hide the debug panel and stack view initially
           (send debug-parent-panel change-children (lambda (l) null))
-          (send debug-grandparent-panel change-children (lambda (l) (remq tab-panel l)))
+          (send debug-grandparent-panel change-children (lambda (l) (remq stack-view-panel l)))
           (make-object vertical-panel% debug-parent-panel))
-
-        (define/public (get-output-editor) output-editor)
-        (define/public (get-view-canvas) view-canvas)
-        (define/public (get-call-editor) call-editor)
         
         (define/public (hide-debug)
           (when (member debug-panel (send debug-parent-panel get-children))
             (send debug-grandparent-panel change-children
-                  (lambda (l) (remq tab-panel l)))
+                  (lambda (l) (remq stack-view-panel l)))
             (send debug-parent-panel change-children
                   (lambda (l) (remq debug-panel l)))))
         
         (define/public (show-debug)
           (unless (member debug-panel (send debug-parent-panel get-children))
             (send debug-grandparent-panel change-children
-                  (lambda (l) (append l (list tab-panel))))
+                  (lambda (l) (append l (list stack-view-panel))))
             (send debug-parent-panel change-children
                   (lambda (l) (cons debug-panel l)))))
         
@@ -1902,26 +1422,6 @@
         (define/augment (disable-evaluation)
           (send debug-button enable #f)
           (inner (void) disable-evaluation))
-        
-        (define num-button
-          (instantiate button% ()
-            [label "num"]
-            [parent log-button-panel]
-            [callback (lambda (button evt)
-                        (let-values ([(var size) (send output-editor get-selected-var/size)])
-                          (send output-editor trim-trace-size
-                                (get-text-from-user (format "Set size of ~a traces (< ~a)" var size) #f) size)))]
-            [enabled #f]))
-        
-        (define sort-button
-          (instantiate button% ()
-            [label "sort"]
-            [parent log-button-panel]
-            [callback (lambda (button evt)
-                        (let ([traces (send output-editor get-trace-logs)])
-                          (unless (empty? traces)
-                            (send output-editor sort-logs))))]
-            [enabled #f]))        
 
         (define pause-button
           (instantiate button% ()
@@ -1940,7 +1440,7 @@
             [parent debug-panel]
             [callback (lambda (button evt)
                         (if (send (get-current-tab) get-stack-frames)
-                            (send (get-current-tab) resume-handler)
+                            (send (get-current-tab) resume)
                             (bell)))]
             [enabled #f]))
         
@@ -1951,10 +1451,10 @@
             [callback (lambda (btn evt)
                         (cond [(send (get-current-tab) get-stack-frames)
                                (send (get-current-tab) set-single-step?! #t)
-                               (send (get-current-tab) resume-handler)]
+                               (send (get-current-tab) resume)]
                               [else (bell)]))]
             [enabled #f]))
-       
+        
         (define (make-big-step-callback out?)
           (lambda (btn evt)
             ; go through stack frames until it's possible to set a breakpoint at the end
@@ -1989,7 +1489,7 @@
                                  (let ([len (length frames)])
                                    (build-list len (lambda (i) (- len i)))))])
               (cond [frames (send (get-current-tab) set-single-step?! (not frame))
-                            (send (get-current-tab) resume-handler)]
+                            (send (get-current-tab) resume)]
                     [else (bell)]))))
         
         (define step-over-button
@@ -2013,8 +1513,6 @@
         (define/public (get-step-over-button) step-over-button)
         (define/public (get-step-out-button) step-out-button)
         (define/public (get-status-message) status-message)
-        (define/public (get-sort-button) sort-button)
-        (define/public (get-num-button) num-button)
         
         (define mouse-over-message
           (instantiate message% ()
@@ -2025,9 +1523,7 @@
           (if (send new debug?)
               (let ([status (send new get-break-status)])
                 (if status
-                    (begin
-                      (send new update-trace-editor)
-                      (send new suspend-gui (send new get-stack-frames) status #f #t))
+                    (send new suspend-gui (send new get-stack-frames) status #f #t)
                     (send new resume-gui))
                 (show-debug))
               (hide-debug))
@@ -2053,7 +1549,6 @@
         
         ; hide debug button if it's not supported for the initial language:
         (check-current-language-for-debugger)))
-    
     (drscheme:language:register-capability 'gui-debugger:debug-button (flat-contract boolean?) #t)
     (drscheme:get/extend:extend-definitions-text debug-definitions-text-mixin)
     (drscheme:get/extend:extend-interactions-text debug-interactions-text-mixin)
