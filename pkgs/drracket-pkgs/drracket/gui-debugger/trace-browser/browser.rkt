@@ -12,14 +12,15 @@
          images/compile-time
          (for-syntax racket/base
                      images/icons/control
-                     images/icons/style))
+                     images/icons/style)
+         (except-in racket/list range))
 (provide make-trace-browser)
 
 (define (make-trace-browser traces)
   (define frame (new frame%
                      [label "Trace Browser"]
-                     [width 1200]
-                     [height 800]))
+                     [width 800]
+                     [height 600]))
   (define widget (new widget% [parent frame]))
   (send widget set-traces traces)
   (send widget display-traces)
@@ -42,6 +43,7 @@
                       lock
                       last-position
                       insert
+                      delete
                       )
              (super-new)
              
@@ -49,7 +51,7 @@
                (begin-edit-sequence)
                (lock #f)
                (delete 0 (last-position))
-               (for-each insert logs)
+               (for-each (lambda (l) (insert l)) logs)
                (lock #t)
                (end-edit-sequence))
                
@@ -81,7 +83,10 @@
       (new button% [label (list navigate-next-icon "Step" 'right)] [parent navigator]))
     
     (define/public (set-traces t) (set! traces t))
-    (define/public (display-traces) (send log-text display-logs 
+    (define/public (display-traces)
+      (printf "cm: ~a\n" (continuation-mark-set->list (fourth (first traces)) 'inspect))
+      (let ([logs (map (lambda (i) (format "~a: ~v\n" (syntax->datum (first i)) (second i))) traces)])
+        (send log-text display-logs logs)))
       
              
     (send view-text set-styles-sticky #f)
