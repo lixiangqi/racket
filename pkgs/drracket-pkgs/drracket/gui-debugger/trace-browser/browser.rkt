@@ -58,6 +58,7 @@
                
              )))
     
+    (struct trace-struct (id-stx value number ccm))
     (define main-panel
       (new vertical-panel% (parent parent)))
     (define split-panel
@@ -82,10 +83,11 @@
     (define next-button
       (new button% [label (list navigate-next-icon "Step" 'right)] [parent navigator]))
     
-    (define/public (set-traces t) (set! traces t))
+    (define/public (set-traces trace) 
+      (set! traces (map (lambda (t) (trace-struct (first t) (second t) (third t) (fourth t))) trace)))
+    
     (define/public (display-traces)
-      (printf "cm: ~a\n" (continuation-mark-set->list (fourth (first traces)) 'inspect))
-      (let ([logs (map (lambda (i) (format "~a: ~v\n" (syntax->datum (first i)) (second i))) traces)])
+      (let ([logs (map (lambda (t) (format "~a: ~v\n" (syntax->datum (trace-struct-id-stx t)) (trace-struct-value t))) traces)])
         (send log-text display-logs logs)))
       
              
