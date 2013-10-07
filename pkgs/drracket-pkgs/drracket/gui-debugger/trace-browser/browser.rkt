@@ -26,14 +26,13 @@
   (send widget display-traces)
   (send frame show #t))
 
-;; widget%
-;; A syntax widget creates its own syntax-controller.
 (define widget%
   (class object%
     (init parent)
 
     (field [controller (new controller%)]
-           [traces empty])
+           [traces empty]
+           [step 0])
     
     (define log-text
       (new (class text%
@@ -59,29 +58,39 @@
              )))
     
     (struct trace-struct (id-stx value number ccm))
+    
     (define main-panel
       (new vertical-panel% (parent parent)))
     (define split-panel
       (new panel:horizontal-dragable% (parent main-panel)))
+    
     (define view-text (new browser-text%))
     (new editor-canvas% [parent split-panel] [editor log-text] [style '(auto-hscroll)])
     (define view-panel (new vertical-panel% [parent split-panel]))
     (define view-canvas (new canvas:color% (parent view-panel) (editor view-text)))
     
-    (define slider-panel (new horizontal-panel% [parent view-panel] [stretchable-width #f] [stretchable-height #f]))
-    (new slider% [label #f] [min-value 1] [max-value 200] [parent slider-panel] [style (list 'horizontal 'plain)])
+    (define slider-panel 'uninitialized-slider-panel)
+    (define navigator 'uninitialized-navigator)
+    (define previous-button 'uninitialized-previous-button)
+    (define next-button 'uninitialized-next-button)
+    (define status-msg 'uninitialized-status-msg)
     
-    (define navigator (new horizontal-panel% [parent view-panel] [stretchable-width #f] [stretchable-height #f]))
-    (define navigate-previous-icon
-      (compiled-bitmap (step-back-icon #:color run-icon-color #:height (toolbar-icon-height))))
-    (define navigate-next-icon
-      (compiled-bitmap (step-icon #:color run-icon-color #:height (toolbar-icon-height))))
-    (define previous-button
-      (new button% [label (list navigate-previous-icon "Step" 'left)] [parent navigator]))
-    (define msg
-      (new message% [label "Step 1 of 20"] [parent navigator]))
-    (define next-button
-      (new button% [label (list navigate-next-icon "Step" 'right)] [parent navigator]))
+    (define/private (initialize-navigator)
+      (let ([navigate-previous-icon (compiled-bitmap (step-back-icon #:color run-icon-color #:height (toolbar-icon-height)))]
+            [navigate-next-icon (compiled-bitmap (step-icon #:color run-icon-color #:height (toolbar-icon-height)))])
+        (set! slider-panel (new horizontal-panel% [parent view-panel] [stretchable-width #f] [stretchable-height #f]))
+        (new slider% [label #f] [min-value 1] [max-value 200] [parent slider-panel] [style (list 'horizontal 'plain)])      
+        (set! navigator (new horizontal-panel% [parent view-panel] [stretchable-width #f] [stretchable-height #f]))
+        (set! previous-button (new button% [label (list navigate-previous-icon "Step" 'left)] [parent navigator]))
+        (set! status-msg (new message% [label "Step 1 of 20"] [parent navigator]))
+        (set! next-button (new button% 
+                               [label (list navigate-next-icon "Step" 'right)]
+                               [parent navigator]
+                               [callback (lambda (b e) (navigate-next))]))))
+    
+    (define/private (navigate-next)
+      (void))
+      
     
     (define/public (set-traces trace) 
       (set! traces (map (lambda (t) (trace-struct (first t) (second t) (third t) (fourth t))) trace)))
@@ -147,9 +156,18 @@
             [w-box (box 0.0)])
         (send admin get-view #f #f w-box #f)
         (sub1 (inexact->exact (floor (/ (unbox w-box) char-width))))))
+    
+    (define/public (initialize-view-text)
+      (let ([sd (new style-delta%)])
+        (with-unlock view-text
+          (send sd set-delta-foreground "gray")
+          (send view-text insert "No trace selected\n")
+          (send view-text change-style sd (send view-text paragraph-start-position 0) 
+                                          (send view-text paragraph-end-position 0)))))
 
     ;; Initialize
     (super-new)
+    (initialize-view-text)
     (send split-panel begin-container-sequence)
     (send split-panel set-percentages (list 1/3 2/3))
     (send split-panel end-container-sequence)))
