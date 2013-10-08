@@ -71,7 +71,7 @@
 
     ;; add-clickbacks : -> void
     (define/private (add-clickbacks)
-      (define mapping (send text get-region-mapping 'syntax))
+      (define mapping (make-interval-map))
       (define lazy-interval-map-init
         (delay
           (uninterruptible
@@ -84,8 +84,7 @@
         (force lazy-interval-map-init)
         (send/i controller selection-manager<%> set-selected-syntax
                 (interval-map-ref mapping position #f)))
-      (send text set-clickregion start-position end-position the-callback)
-      (send text set-clickregion start-position end-position the-callback 'right-down))
+      (send text set-clickregion start-position end-position the-callback))
 
     ;; refresh : -> void
     ;; Clears all highlighting and reapplies all non-foreground styles.
