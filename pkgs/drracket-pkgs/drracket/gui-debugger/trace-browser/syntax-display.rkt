@@ -5,7 +5,7 @@
          data/interval-map
          framework
          unstable/class-iop
-         macro-debugger/syntax-browser/pretty-printer
+         "pretty-printer.rkt"
          "interface.rkt"
          "util.rkt")
 (provide print-syntax-to-editor)
@@ -25,6 +25,7 @@
                                      (send/i controller controller<%> get-primary-partition)
                                      limit
                                      suffix-option
+                                     (make-immutable-hasheq null)
                                      columns
                                      #t))
   (define output-string (get-output-string output-port))

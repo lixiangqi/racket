@@ -198,7 +198,13 @@
                                           (send view-text paragraph-end-position 0)))))
     
     (define/private (update-view-text n)
-      (void))
+      (let* ([steps (map first (continuation-mark-set-first (trace-struct-ccm (list-ref traces n)) 'inspect null))])
+        (with-unlock view-text
+        (send view-text erase))
+        (add-syntax (first steps))
+        (add-separator)
+        (add-syntax (second steps))
+        (initialize-navigator)))
 
 
 
