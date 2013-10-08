@@ -188,18 +188,6 @@
         (hash-remove! tacked-table (drawing-draw d))
         (set-box! (drawing-tacked? d) #f)))))
 
-   
-
-#|
-text:clickregion-mixin
-
-Like clickbacks, but:
-  - use interval-map to avoid linear search
-    (major problem w/ macro stepper and large expansions!)
-  - callback takes position of click, not (start, end)
-  - different rules for removal
-  - TODO: extend to double-click
-|#
 (define text:clickregion-mixin
   (mixin (text:region-data<%>) ()
     (inherit get-admin
@@ -209,11 +197,6 @@ Like clickbacks, but:
 
     (super-new)
 
-    ;; Two mappings: one for left clicks, another for right
-    ;; mouse-downs.  Rationale: macro stepper wants to handle left
-    ;; clicks normally, but wants to insert behavior (ie, change
-    ;; focus) before normal processing of right-down (ie, editor
-    ;; passes to keymap, opens popup menu).
     (define clickbacks (get-region-mapping 'click-region))
     (define right-clickbacks (get-region-mapping 'right-click-region))
     (define tracking #f)
