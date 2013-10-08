@@ -43,16 +43,48 @@
                       last-position
                       insert
                       delete
+                      find-line
+                      change-style
+                      line-paragraph
+                      dc-location-to-editor-location
+                      paragraph-start-position
+                      paragraph-end-position
                       )
              (super-new)
              
-             (define/public (display-logs logs)
+             (define var-logs empty)
+             (define mark-num 0)
+             (define bold-sd (make-object style-delta% 'change-weight 'bold))
+             (define normal-sd (make-object style-delta% 'change-weight 'normal))
+             
+             (define/public (display-logs logs mark?)
                (begin-edit-sequence)
                (lock #f)
+               (set! var-logs logs)
                (delete 0 (last-position))
                (for-each (lambda (l) (insert l)) logs)
+               (when mark?
+                 (change-style normal-sd 0 (last-position))
+                 (change-style bold-sd 
+                               (paragraph-start-position mark-num)
+                               (paragraph-end-position mark-num)))
                (lock #t)
                (end-edit-sequence))
+             
+             (define/private (move-to-view num)
+               (set! mark-num num)
+               (display-logs var-logs #t))
+             
+             (define/override (on-event evt)
+               (let*-values ([(x y) (dc-location-to-editor-location (send evt get-x) (send evt get-y))]
+                             [(line) (find-line y)]
+                             [(paragraph) (line-paragraph line)])
+                 (case (send evt get-event-type)
+                   [(left-down)
+                    (when (< paragraph (length var-logs))
+                      (move-to-view paragraph)
+                      (update-view-text paragraph))])))
+                             
                
                
              )))
@@ -97,7 +129,7 @@
     
     (define/public (display-traces)
       (let ([logs (map (lambda (t) (format "~a: ~v\n" (syntax->datum (trace-struct-id-stx t)) (trace-struct-value t))) traces)])
-        (send log-text display-logs logs)))
+        (send log-text display-logs logs #f)))
       
              
     (send view-text set-styles-sticky #f)
@@ -164,6 +196,12 @@
           (send view-text insert "No trace selected\n")
           (send view-text change-style sd (send view-text paragraph-start-position 0) 
                                           (send view-text paragraph-end-position 0)))))
+    
+    (define/private (update-view-text n)
+      (void))
+
+
+
 
     ;; Initialize
     (super-new)
