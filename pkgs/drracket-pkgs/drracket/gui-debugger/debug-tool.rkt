@@ -693,6 +693,7 @@
                                 (send (send defs get-tab)
                                       update-logs id val num ccm))]
                              [else (void)]))
+                         (get-pos-table)
                          source))
                       (hash-for-each
                        breakpoints

@@ -53,7 +53,7 @@
   ;; RECORD-BOUND-ID and RECORD-TOP-LEVEL-ID are simply passed to ANNOTATE-STX.  
   
   (define annotate-for-single-stepping
-    (opt-lambda (stx break? break-before break-after record-bound-id record-top-level-id record-log [source #f])
+    (opt-lambda (stx break? break-before break-after record-bound-id record-top-level-id record-log stx-table [source #f])
       (annotate-stx
        stx
        (lambda (debug-info annotated raw is-tail?)
@@ -107,6 +107,7 @@
        record-bound-id
        record-top-level-id
        record-log
+       stx-table
        source)))
 
 
@@ -148,7 +149,7 @@
   ;; Naturally, when USE-CASE is 'bind, BOUND-STX and BINDING-STX are equal.  
   ;;
   (define annotate-stx
-    (opt-lambda (stx break-wrap record-bound-id record-top-level-id record-log [source #f])
+    (opt-lambda (stx break-wrap record-bound-id record-top-level-id record-log stx-table [source #f])
       
       (define breakpoints (make-hasheq))
       
@@ -320,10 +321,13 @@
                              #,@debug-info-stx
                              #,(previous-bindings bound-vars)))]
                          [captured (continuation-mark-set-first #f 'inspect null)]
-                         [var-table (make-hasheq)])
+                         [var-table (make-hasheq)]
+                         [body-stx (hash-ref #,stx-table 
+                                             (syntax-position (quote-syntax lambda-clause)) 
+                                             (lambda () (quote-syntax lambda-clause)))])
                      (unless (empty? '#,arg-pos-info)
                        (for-each (lambda (pos val) (hash-ref! var-table pos (val))) '#,arg-pos-info (list #,@debug-info-stx)))
-                     (with-continuation-mark 'inspect (append captured (list (list (quote-syntax lambda-clause) 
+                     (with-continuation-mark 'inspect (append captured (list (list body-stx
                                                                                    (#%plain-lambda () var-table)
                                                                                    (continuation-mark-set-first #f 'app null))))  
                        (begin
