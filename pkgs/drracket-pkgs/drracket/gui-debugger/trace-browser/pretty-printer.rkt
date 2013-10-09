@@ -9,7 +9,7 @@
 
 ;; pretty-print-syntax : syntax port hasheq number bool
 ;;                    -> range%
-(define (pretty-print-syntax stx port styles columns abbrev?)
+(define (pretty-print-syntax stx port styles abbrev?)
   (define range-builder (new range-builder%))
   (define-values (datum ht:flat=>stx ht:stx=>flat)
     (syntax->datum/tables stx))
@@ -42,8 +42,7 @@
     [pretty-print-post-print-hook pp-post-hook]
     [pretty-print-size-hook pp-size-hook]
     [pretty-print-print-hook pp-print-hook]
-    [pretty-print-remap-stylable pp-remap-stylable]
-    [pretty-print-columns columns])
+    [pretty-print-remap-stylable pp-remap-stylable])
    (pretty-print/defaults datum port)
    (new range%
         (range-builder range-builder)

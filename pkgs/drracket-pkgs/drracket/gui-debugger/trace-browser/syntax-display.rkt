@@ -16,13 +16,12 @@
 ;; print-syntax-to-editor : syntax text controller<%> config number number
 ;;                       -> display<%>
 ;; Note: must call display<%>::refresh to finish styling.
-(define (print-syntax-to-editor stx text controller config columns
+(define (print-syntax-to-editor stx text controller config
                                 [insertion-point (send text last-position)])
   (define output-port (open-output-string/count-lines))
   (define range (pretty-print-syntax stx 
                                      output-port 
                                      (make-immutable-hasheq null)
-                                     columns
                                      #t))
   (define output-string (get-output-string output-port))
   (define output-length (sub1 (string-length output-string))) ;; skip final newline

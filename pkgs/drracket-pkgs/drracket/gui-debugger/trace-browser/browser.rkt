@@ -152,7 +152,6 @@
       (with-unlock view-text
         (define display
           (print-syntax-to-editor stx view-text controller
-                                  (calculate-columns)
                                   (send view-text last-position)))
         (send view-text insert "\n")
         (define range (send/i display display<%> get-range))
@@ -180,14 +179,6 @@
       (send/i controller displays-manager<%> remove-all-syntax-displays))
 
     (define/public (get-text) view-text)
-
-    (define/private (calculate-columns)
-      (define style (send (send view-text get-style-list) find-named-style (editor:get-default-color-style-name)))
-      (define char-width (send style get-text-width (send view-canvas get-dc)))
-      (let ([admin (send view-text get-admin)]
-            [w-box (box 0.0)])
-        (send admin get-view #f #f w-box #f)
-        (sub1 (inexact->exact (floor (/ (unbox w-box) char-width))))))
     
     (define/public (initialize-view-text)
       (let ([sd (new style-delta%)])
@@ -205,9 +196,6 @@
         (add-separator)
         (add-syntax (second steps))
         (initialize-navigator)))
-
-
-
 
     ;; Initialize
     (super-new)
