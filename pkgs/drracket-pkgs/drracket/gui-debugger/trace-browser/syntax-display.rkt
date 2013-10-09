@@ -19,12 +19,8 @@
 (define (print-syntax-to-editor stx text controller config columns
                                 [insertion-point (send text last-position)])
   (define output-port (open-output-string/count-lines))
-  (define limit 17)
-  (define suffix-option 'over-limit)
-  (define range (pretty-print-syntax stx output-port 
-                                     (send/i controller controller<%> get-primary-partition)
-                                     limit
-                                     suffix-option
+  (define range (pretty-print-syntax stx 
+                                     output-port 
                                      (make-immutable-hasheq null)
                                      columns
                                      #t))

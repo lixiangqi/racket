@@ -7,24 +7,12 @@
          "interface.rkt")
 (provide pretty-print-syntax)
 
-;; FIXME: Need to disable printing of structs with custom-write property
-
-;; pretty-print-syntax : syntax port partition number SuffixOption hasheq number bool
+;; pretty-print-syntax : syntax port hasheq number bool
 ;;                    -> range%
-(define (pretty-print-syntax stx port
-                             primary-partition colors suffix-option styles columns abbrev?)
-  
-  (pretty-print/defaults (syntax->datum stx) port)
-  
-  (new range%
-        (range-builder (new range-builder%))
-        (identifier-list null))
-  
-  ;------------------
-  #|
+(define (pretty-print-syntax stx port styles columns abbrev?)
   (define range-builder (new range-builder%))
   (define-values (datum ht:flat=>stx ht:stx=>flat)
-    (syntax->datum/tables stx primary-partition colors suffix-option abbrev?))
+    (syntax->datum/tables stx))
   (define identifier-list
     (filter identifier? (hash-map ht:stx=>flat (lambda (k v) k))))
   (define (flat=>stx obj)
@@ -55,16 +43,12 @@
     [pretty-print-size-hook pp-size-hook]
     [pretty-print-print-hook pp-print-hook]
     [pretty-print-remap-stylable pp-remap-stylable]
-    [pretty-print-abbreviate-read-macros abbrev?]
-    [pretty-print-current-style-table (pp-better-style-table styles)]
     [pretty-print-columns columns])
    (pretty-print/defaults datum port)
    (new range%
         (range-builder range-builder)
-        (identifier-list identifier-list)))
-  |#
-  )
-#|
+        (identifier-list identifier-list))))
+
 (define (pp-print-hook obj display-like? port)
   (cond [(syntax-dummy? obj)
          ((if display-like? display write) (syntax-dummy-val obj) port)]
@@ -87,37 +71,6 @@
        (let ([remap (id-syntax-dummy-remap obj)])
          (and (not (memq remap special-expression-keywords))
               remap))))
-
-(define (pp-better-style-table styles)
-  (define style-list (for/list ([(k v) (in-hash styles)]) (cons k v)))
-  (pretty-print-extend-style-table
-   (basic-style-list)
-   (map car style-list)
-   (map cdr style-list)))
-|#
-(define (basic-style-list)
-  (pretty-print-extend-style-table
-   (pretty-print-current-style-table)
-   (map car basic-styles)
-   (map cdr basic-styles)))
-(define basic-styles
-  '((define-values          . define)
-    (define-syntaxes        . define-syntax)
-    (define-for-syntax      . define)
-    (define-values-for-syntax . define))
-  #|
-  ;; Messes up formatting too much :(
-  (let* ([pref (pref:tabify)]
-         [table (car pref)]
-         [begin-rx (cadr pref)]
-         [define-rx (caddr pref)]
-         [lambda-rx (cadddr pref)])
-    (let ([style-list (hash-table-map table cons)])
-      (pretty-print-extend-style-table
-       (basic-style-list)
-       (map car style-list)
-       (map cdr style-list))))
-  |#)
 
 (define-local-member-name range:get-ranges)
 

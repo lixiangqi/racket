@@ -87,3 +87,7 @@
   (values (lambda (new-fields)
             (apply make-prefab-struct key new-fields))
           fields))
+
+(define special-expression-keywords
+  '(quote quasiquote unquote unquote-splicing syntax
+    quasisyntax unsyntax unsyntax-splicing))
