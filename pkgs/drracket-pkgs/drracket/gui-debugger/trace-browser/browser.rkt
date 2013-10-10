@@ -32,7 +32,10 @@
 
     (field [controller (new controller%)]
            [traces empty]
-           [step 0])
+           [current-marks empty]
+           [function-calls empty]
+           [step 1]
+           [limit 0])
     
     (define log-text
       (new (class text%
@@ -122,8 +125,8 @@
         (set! status-msg (new message% [label ""] [parent navigator] [stretchable-width #t]))))
     
     (define/private (navigate-next)
-      (void))
-      
+      (when (>= (* step 2) limit) (send next-button enable #f))
+      (update-next-view))
     
     (define/public (set-traces trace) 
       (set! traces (map (lambda (t) (trace-struct (first t) (second t) (third t) (fourth t))) trace)))
@@ -190,15 +193,26 @@
                                           (send view-text paragraph-end-position 0)))))
     
     (define/private (update-view-text n)
-      (let* ([steps (map first (continuation-mark-set-first (trace-struct-ccm (list-ref traces n)) 'inspect null))])
-        (printf "steps = ~a\n" (length steps))
+      (set! current-marks (continuation-mark-set-first (trace-struct-ccm (list-ref traces n)) 'inspect null))
+      (set! function-calls (map first current-marks))
+      (set! limit (length function-calls))
+      (set! step 1)
+      (initialize-navigator)
+      (update-next-view))
+    
+    (define/private (update-next-view)
+      (let* ([second-index (sub1 (* step 2))]
+             [first-index (sub1 second-index)])
         (with-unlock view-text
-        (send view-text erase))
-        (add-syntax (first steps))
-        (add-separator)
-        (add-syntax (second steps))
-        (initialize-navigator)
-        (send status-msg set-label "update")))
+          (send view-text erase))
+        (add-syntax (list-ref function-calls first-index))
+        (if (< second-index limit)
+            (begin
+              (add-separator)
+              (add-syntax (list-ref function-calls second-index))
+              (send status-msg set-label (format "Step ~a of ~a" (add1 second-index) limit)))
+            (send status-msg set-label (format "Step ~a of ~a" (add1 first-index) limit)))
+        (set! step (add1 step))))
 
     ;; Initialize
     (super-new)
