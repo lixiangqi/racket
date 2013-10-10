@@ -112,13 +112,13 @@
             [navigate-next-icon (compiled-bitmap (step-icon #:color run-icon-color #:height (toolbar-icon-height)))])
         (set! slider-panel (new horizontal-panel% [parent view-panel] [stretchable-width #f] [stretchable-height #f]))
         (new slider% [label #f] [min-value 1] [max-value 200] [parent slider-panel] [style (list 'horizontal 'plain)])      
-        (set! navigator (new horizontal-panel% [parent view-panel] [stretchable-width #f] [stretchable-height #f]))
+        (set! navigator (new horizontal-panel% [parent view-panel] [stretchable-height #f] [alignment '(center center)]))
         (set! previous-button (new button% [label (list navigate-previous-icon "Step" 'left)] [parent navigator]))
-        (set! status-msg (new message% [label "Step 1 of 20"] [parent navigator]))
         (set! next-button (new button% 
                                [label (list navigate-next-icon "Step" 'right)]
                                [parent navigator]
-                               [callback (lambda (b e) (navigate-next))]))))
+                               [callback (lambda (b e) (navigate-next))]))
+        (set! status-msg (new message% [label "set"] [parent navigator] [stretchable-width #t]))))
     
     (define/private (navigate-next)
       (void))
@@ -190,12 +190,14 @@
     
     (define/private (update-view-text n)
       (let* ([steps (map first (continuation-mark-set-first (trace-struct-ccm (list-ref traces n)) 'inspect null))])
+        (printf "steps = ~a\n" (length steps))
         (with-unlock view-text
         (send view-text erase))
         (add-syntax (first steps))
         (add-separator)
         (add-syntax (second steps))
-        (initialize-navigator)))
+        (initialize-navigator)
+        (send status-msg set-label "update")))
 
     ;; Initialize
     (super-new)
