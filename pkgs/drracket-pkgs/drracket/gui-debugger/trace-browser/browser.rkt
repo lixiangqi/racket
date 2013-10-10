@@ -113,12 +113,13 @@
         (set! slider-panel (new horizontal-panel% [parent view-panel] [stretchable-width #f] [stretchable-height #f]))
         (new slider% [label #f] [min-value 1] [max-value 200] [parent slider-panel] [style (list 'horizontal 'plain)])      
         (set! navigator (new horizontal-panel% [parent view-panel] [stretchable-height #f] [alignment '(center center)]))
+        (new message% [label ""] [parent navigator] [stretchable-width #t])
         (set! previous-button (new button% [label (list navigate-previous-icon "Step" 'left)] [parent navigator]))
         (set! next-button (new button% 
                                [label (list navigate-next-icon "Step" 'right)]
                                [parent navigator]
                                [callback (lambda (b e) (navigate-next))]))
-        (set! status-msg (new message% [label "set"] [parent navigator] [stretchable-width #t]))))
+        (set! status-msg (new message% [label ""] [parent navigator] [stretchable-width #t]))))
     
     (define/private (navigate-next)
       (void))
