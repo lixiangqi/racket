@@ -35,6 +35,7 @@
     (super-new)
 
     (define clickbacks (make-interval-map))
+    (define arrow-cursor (make-object cursor% 'arrow))
     (define tracking #f)
 
     (define/public (set-clickregion start end callback)
@@ -68,7 +69,14 @@
                (when (eq? tracking* cb)
                  (cb pos)))
              (send admin update-cursor)))))
-      (super on-default-event ev))))
+      (super on-default-event ev))
+    
+    (define/override (adjust-cursor ev)
+      (define pos (get-event-position ev))
+      (define cb (and pos (interval-map-ref clickbacks pos #f)))
+      (if cb
+          arrow-cursor
+          (super adjust-cursor ev)))))
 
 (define browser-text%
   (let ([browser-text-default-style-name "browser-text% basic"])
