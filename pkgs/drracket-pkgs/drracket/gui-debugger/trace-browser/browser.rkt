@@ -6,7 +6,6 @@
          "interface.rkt"
          "controller.rkt"
          "syntax-display.rkt"
-         "hrule-snip.rkt"
          "text.rkt"
          "util.rkt" 
          images/compile-time
@@ -152,7 +151,6 @@
     (send view-text lock #t)
     
     (define/public (add-text text)
-      (printf "add-text:text=~a\n" text)
       (with-unlock view-text
         (send view-text insert text)))
     
@@ -183,12 +181,6 @@
         
         (send display refresh)))
 
-    (define/public (add-separator)
-      (with-unlock view-text
-        (send* view-text
-          (insert (new hrule-snip%))
-          (insert "\n"))))
-
     (define/public (erase-all)
       (with-unlock view-text
         (send view-text erase))
@@ -215,16 +207,17 @@
     (define/private (update-trace-view)
       (let* ([second-index (sub1 (* step 2))]
              [first-index (sub1 second-index)])
-        (printf "update-trace-view: step = ~a, first = ~a, second = ~a\n" step first-index second-index)
         (with-unlock view-text
           (send view-text erase))
         (add-syntax (list-ref function-calls first-index))
         (if (< second-index limit)
             (begin
-              (add-separator)
+              (add-text "\n")
+              (add-text (make-object image-snip% (make-object bitmap% (collection-file-path "red-arrow.bmp" "icons") 'bmp)))
+              (add-text "\n\n")
               (add-syntax (list-ref function-calls second-index))
-              (send status-msg set-label (format "Step ~a of ~a" (add1 second-index) limit)))
-            (send status-msg set-label (format "Step ~a of ~a" (add1 first-index) limit)))))
+              (send status-msg set-label (format "Trace ~a of ~a" (add1 second-index) limit)))
+            (send status-msg set-label (format "Trace ~a of ~a" (add1 first-index) limit)))))
 
     ;; Initialize
     (super-new)
