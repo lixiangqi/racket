@@ -117,16 +117,28 @@
         (new slider% [label #f] [min-value 1] [max-value 200] [parent slider-panel] [style (list 'horizontal 'plain)])      
         (set! navigator (new horizontal-panel% [parent view-panel] [stretchable-height #f] [alignment '(center center)]))
         (new message% [label ""] [parent navigator] [stretchable-width #t])
-        (set! previous-button (new button% [label (list navigate-previous-icon "Step" 'left)] [parent navigator]))
+        (set! previous-button (new button% 
+                                   [label (list navigate-previous-icon "Step" 'left)] 
+                                   [parent navigator] 
+                                   [callback (lambda (b e) (navigate-previous))]
+                                   [enabled #f]))
         (set! next-button (new button% 
                                [label (list navigate-next-icon "Step" 'right)]
                                [parent navigator]
                                [callback (lambda (b e) (navigate-next))]))
         (set! status-msg (new message% [label ""] [parent navigator] [stretchable-width #t]))))
     
+    (define/private (navigate-previous)
+      (send next-button enable #t)
+      (set! step (sub1 step))
+      (when (= step 1) (send previous-button enable #f))
+      (update-trace-view))
+    
     (define/private (navigate-next)
+      (send previous-button enable #t)
+      (set! step (add1 step))
       (when (>= (* step 2) limit) (send next-button enable #f))
-      (update-next-view))
+      (update-trace-view))
     
     (define/public (set-traces trace) 
       (set! traces (map (lambda (t) (trace-struct (first t) (second t) (third t) (fourth t))) trace)))
@@ -198,11 +210,12 @@
       (set! limit (length function-calls))
       (set! step 1)
       (initialize-navigator)
-      (update-next-view))
+      (update-trace-view))
     
-    (define/private (update-next-view)
+    (define/private (update-trace-view)
       (let* ([second-index (sub1 (* step 2))]
              [first-index (sub1 second-index)])
+        (printf "update-trace-view: step = ~a, first = ~a, second = ~a\n" step first-index second-index)
         (with-unlock view-text
           (send view-text erase))
         (add-syntax (list-ref function-calls first-index))
@@ -211,8 +224,7 @@
               (add-separator)
               (add-syntax (list-ref function-calls second-index))
               (send status-msg set-label (format "Step ~a of ~a" (add1 second-index) limit)))
-            (send status-msg set-label (format "Step ~a of ~a" (add1 first-index) limit)))
-        (set! step (add1 step))))
+            (send status-msg set-label (format "Step ~a of ~a" (add1 first-index) limit)))))
 
     ;; Initialize
     (super-new)
