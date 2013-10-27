@@ -103,17 +103,23 @@
     (define view-panel (new vertical-panel% [parent split-panel]))
     (define view-canvas (new canvas:color% (parent view-panel) (editor view-text)))
     
-    (define slider-panel 'uninitialized-slider-panel)
     (define navigator 'uninitialized-navigator)
     (define previous-button 'uninitialized-previous-button)
     (define next-button 'uninitialized-next-button)
     (define status-msg 'uninitialized-status-msg)
+    (define slider 'uninitialized-slider)
     
     (define/private (initialize-navigator)
       (let ([navigate-previous-icon (compiled-bitmap (step-back-icon #:color run-icon-color #:height (toolbar-icon-height)))]
-            [navigate-next-icon (compiled-bitmap (step-icon #:color run-icon-color #:height (toolbar-icon-height)))])
-        (set! slider-panel (new horizontal-panel% [parent view-panel] [stretchable-width #f] [stretchable-height #f]))
-        (new slider% [label #f] [min-value 1] [max-value 200] [parent slider-panel] [style (list 'horizontal 'plain)])      
+            [navigate-next-icon (compiled-bitmap (step-icon #:color run-icon-color #:height (toolbar-icon-height)))]
+            [slider-panel (new horizontal-panel% [parent view-panel] [stretchable-width #f] [stretchable-height #f])])
+        (set! slider (new slider% 
+                          [label #f] 
+                          [min-value 1] 
+                          [max-value limit] 
+                          [parent slider-panel] 
+                          [style (list 'horizontal 'plain)]
+                          [callback (lambda (b e) (set-current-step (send slider get-value)))]))
         (set! navigator (new horizontal-panel% [parent view-panel] [stretchable-height #f] [alignment '(center center)]))
         (new message% [label ""] [parent navigator] [stretchable-width #t])
         (set! previous-button (new button% 
@@ -131,13 +137,17 @@
       (send next-button enable #t)
       (set! step (sub1 step))
       (when (= step 1) (send previous-button enable #f))
-      (update-trace-view))
+      (update-trace-view-backward))
     
     (define/private (navigate-next)
       (send previous-button enable #t)
       (set! step (add1 step))
-      (when (>= (* step 2) limit) (send next-button enable #f))
-      (update-trace-view))
+      (when (>= step limit) (send next-button enable #f))
+      (update-trace-view-forward))
+    
+    (define/private (set-current-step s)
+      (set! step s)
+      #;(update-trace-view))
     
     (define/public (set-traces trace) 
       (set! traces (map (lambda (t) (trace-struct (first t) (second t) (third t) (fourth t))) trace)))
@@ -202,22 +212,34 @@
       (set! limit (length function-calls))
       (set! step 1)
       (initialize-navigator)
-      (update-trace-view))
+      (update-trace-view-forward))
     
-    (define/private (update-trace-view)
-      (let* ([second-index (sub1 (* step 2))]
-             [first-index (sub1 second-index)])
-        (with-unlock view-text
-          (send view-text erase))
-        (add-syntax (list-ref function-calls first-index))
-        (if (< second-index limit)
-            (begin
-              (add-text "\n")
-              (add-text (make-object image-snip% (make-object bitmap% (collection-file-path "red-arrow.bmp" "icons") 'bmp)))
-              (add-text "\n\n")
-              (add-syntax (list-ref function-calls second-index))
-              (send status-msg set-label (format "Trace ~a of ~a" (add1 second-index) limit)))
-            (send status-msg set-label (format "Trace ~a of ~a" (add1 first-index) limit)))))
+    (define/private (update-trace-view-forward)
+      (cond 
+        [(odd? step) 
+         (with-unlock view-text
+           (send view-text erase))
+         (add-syntax (list-ref function-calls (sub1 step)))]
+        [else 
+         (add-text "\n")
+         (add-text (make-object image-snip% (make-object bitmap% (collection-file-path "red-arrow.bmp" "icons") 'bmp)))
+         (add-text "\n\n")
+         (add-syntax (list-ref function-calls (sub1 step)))])
+      (send status-msg set-label (format "Trace ~a of ~a" step limit)))
+    
+    (define/private (update-trace-view-backward)
+      (with-unlock view-text
+        (send view-text erase))
+      (cond
+        [(odd? step)
+         (add-syntax (list-ref function-calls (sub1 step)))]
+        [else
+         (add-syntax (list-ref function-calls (- step 2)))
+         (add-text "\n")
+         (add-text (make-object image-snip% (make-object bitmap% (collection-file-path "red-arrow.bmp" "icons") 'bmp)))
+         (add-text "\n\n")
+         (add-syntax (list-ref function-calls (sub1 step)))])
+      (send status-msg set-label (format "Trace ~a of ~a" step limit)))
 
     ;; Initialize
     (super-new)
