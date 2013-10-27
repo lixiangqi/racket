@@ -146,8 +146,13 @@
       (update-trace-view-forward))
     
     (define/private (set-current-step s)
-      (set! step s)
-      #;(update-trace-view))
+      (cond
+        [(< step s)
+         (set! step s)
+         (update-trace-view-forward)]
+        [else 
+         (set! step s)
+         (update-trace-view-backward)]))
     
     (define/public (set-traces trace) 
       (set! traces (map (lambda (t) (trace-struct (first t) (second t) (third t) (fourth t))) trace)))
