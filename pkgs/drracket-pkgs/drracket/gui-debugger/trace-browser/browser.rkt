@@ -136,12 +136,14 @@
     (define/private (navigate-previous)
       (send next-button enable #t)
       (set! step (sub1 step))
+      (send slider set-value step)
       (when (= step 1) (send previous-button enable #f))
       (update-trace-view-backward))
     
     (define/private (navigate-next)
       (send previous-button enable #t)
       (set! step (add1 step))
+      (send slider set-value step)
       (when (>= step limit) (send next-button enable #f))
       (update-trace-view-forward))
     
