@@ -421,7 +421,10 @@
 ;                                            (printf "****\n"))
                                           (#%plain-app #,record-log #'var var num (current-continuation-marks)))))
                                     (quasisyntax/loc expr
-                                      (with-continuation-mark 'app #'exprs (#%plain-app . #,subexprs))))])
+                                      (let ([orig-exp (hash-ref #,stx-table
+                                                               (syntax-position #'exprs)
+                                                               (lambda () #'exprs))])
+                                        (with-continuation-mark 'app orig-exp (#%plain-app . #,subexprs)))))])
                (if (or is-tail? (not (syntax-source expr)))
                    result-stx
                    (wcm-wrap (make-debug-info module-name expr bound-vars bound-vars 'normal #f (previous-bindings bound-vars))
