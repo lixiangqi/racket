@@ -30,9 +30,12 @@
     (init parent)
 
     (field [controller (new controller%)]
+           [display #f]
            [traces empty]
            [current-marks empty]
            [function-calls empty]
+           [var-tables empty]
+           [last-app-list empty]
            [step 1]
            [limit 0])
     
@@ -134,17 +137,13 @@
         (set! status-msg (new message% [label ""] [parent navigator] [stretchable-width #t]))))
     
     (define/private (navigate-previous)
-      (send next-button enable #t)
       (set! step (sub1 step))
       (send slider set-value step)
-      (when (= step 1) (send previous-button enable #f))
       (update-trace-view-backward))
     
     (define/private (navigate-next)
-      (send previous-button enable #t)
       (set! step (add1 step))
       (send slider set-value step)
-      (when (>= step limit) (send next-button enable #f))
       (update-trace-view-forward))
     
     (define/private (set-current-step s)
@@ -152,7 +151,7 @@
         [(< step s)
          (set! step s)
          (update-trace-view-forward)]
-        [else 
+        [(> step s) 
          (set! step s)
          (update-trace-view-backward)]))
     
@@ -181,9 +180,8 @@
       (define (get-shifted id) (hash-ref shift-table id null))
       
       (with-unlock view-text
-        (define display
-          (print-syntax-to-editor stx view-text controller
-                                  (send view-text last-position)))
+        (set! display (print-syntax-to-editor stx view-text controller
+                                              (send view-text last-position)))
         (send view-text insert "\n")
         (define range (send/i display display<%> get-range))
         (define offset (send/i display display<%> get-start-position))
@@ -216,12 +214,16 @@
     (define/private (update-view-text n)
       (set! current-marks (continuation-mark-set-first (trace-struct-ccm (list-ref traces n)) 'inspect null))
       (set! function-calls (map first current-marks))
+      (set! var-tables (map second current-marks))
+      (set! last-app-list (map third current-marks))
       (set! limit (length function-calls))
       (set! step 1)
       (initialize-navigator)
       (update-trace-view-forward))
     
     (define/private (update-trace-view-forward)
+      (send previous-button enable #t)
+      (when (>= step limit) (send next-button enable #f))
       (cond 
         [(odd? step) 
          (with-unlock view-text
@@ -235,6 +237,8 @@
       (send status-msg set-label (format "Trace ~a of ~a" step limit)))
     
     (define/private (update-trace-view-backward)
+      (send next-button enable #t)
+      (when (= step 1) (send previous-button enable #f))
       (with-unlock view-text
         (send view-text erase))
       (cond
