@@ -170,31 +170,17 @@
       (with-unlock view-text
         (send view-text insert text)))
     
-    (define/public (add-syntax stx
-                               #:binders [binders '#hash()]
-                               #:shift-table [shift-table '#hash()]
-                               #:definites [definites #f]
-                               #:hi-colors [hi-colors null]
-                               #:hi-stxss [hi-stxss null]
-                               #:substitutions [substitutions null])
-      (define (get-shifted id) (hash-ref shift-table id null))
-      
+    (define/public (add-syntax i #:highlight-color [highlight-color "LightCyan"])
       (with-unlock view-text
-        (set! display (print-syntax-to-editor stx view-text controller
-                                              (send view-text last-position)))
-        (send view-text insert "\n")
-        (define range (send/i display display<%> get-range))
-        (define offset (send/i display display<%> get-start-position))
-        
-         ;; Apply highlighting
-;        (set! hi-stxss (list stx))
-;        (send/i display display<%> highlight-syntaxes hi-stxss "MistyRose")
-        
-        #;(with-log-time "highlights"
-         (for ([hi-stxs (in-list hi-stxss)] [hi-color (in-list hi-colors)])
-           (send/i display display<%> highlight-syntaxes hi-stxs hi-color)))       
-        
-        (send display refresh)))
+        (let ([stx (list-ref function-calls i)]
+              [hi-stxs (if (= (add1 i) limit) null (list (list-ref last-app-list (add1 i))))])
+          (set! display (print-syntax-to-editor stx view-text controller
+                                                (send view-text last-position)))
+          (send view-text insert "\n")
+          (define range (send/i display display<%> get-range))
+          (define offset (send/i display display<%> get-start-position))
+          (send/i display display<%> highlight-syntaxes hi-stxs highlight-color)
+          (send display refresh))))
 
     (define/public (erase-all)
       (with-unlock view-text
@@ -228,12 +214,12 @@
         [(odd? step) 
          (with-unlock view-text
            (send view-text erase))
-         (add-syntax (list-ref function-calls (sub1 step)))]
+         (add-syntax (sub1 step))]
         [else 
          (add-text "\n")
          (add-text (make-object image-snip% (make-object bitmap% (collection-file-path "red-arrow.bmp" "icons") 'bmp)))
          (add-text "\n\n")
-         (add-syntax (list-ref function-calls (sub1 step)))])
+         (add-syntax (sub1 step))])
       (send status-msg set-label (format "Trace ~a of ~a" step limit)))
     
     (define/private (update-trace-view-backward)
@@ -243,13 +229,13 @@
         (send view-text erase))
       (cond
         [(odd? step)
-         (add-syntax (list-ref function-calls (sub1 step)))]
+         (add-syntax (sub1 step))]
         [else
-         (add-syntax (list-ref function-calls (- step 2)))
+         (add-syntax (- step 2))
          (add-text "\n")
          (add-text (make-object image-snip% (make-object bitmap% (collection-file-path "red-arrow.bmp" "icons") 'bmp)))
          (add-text "\n\n")
-         (add-syntax (list-ref function-calls (sub1 step)))])
+         (add-syntax (sub1 step))])
       (send status-msg set-label (format "Trace ~a of ~a" step limit)))
 
     ;; Initialize
