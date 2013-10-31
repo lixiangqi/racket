@@ -230,20 +230,10 @@
 (define select-d
   (make-object style-delta% 'change-weight 'bold))
 
-(define underline-d
-  (make-object style-delta% 'change-underline #t))
-
-(define (highlight-style-delta raw-color #:translate-color? [translate-color? #t])
-  (let ([sd (new style-delta%)]
-        [color (if translate-color? (translate-color raw-color) raw-color)])
+(define (highlight-style-delta color)
+  (let ([sd (new style-delta%)])
     (send sd set-delta-background color)
     sd))
-
-(define (mk-2-constant-style bow-color [wob-color (translate-color bow-color)])
-  (highlight-style-delta bow-color #:translate-color? #f))
-
-(define get-secondary-highlight-d
-  (mk-2-constant-style "yellow" "darkgoldenrod"))
 
 (define (get-undo-select/highlight-d)
   (let ([sd (make-object style-delta% 'change-weight 'normal)]
