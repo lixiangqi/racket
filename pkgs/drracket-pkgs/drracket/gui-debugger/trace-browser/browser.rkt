@@ -30,7 +30,6 @@
     (init parent)
 
     (field [controller (new controller%)]
-           [display #f]
            [traces empty]
            [current-marks empty]
            [function-calls empty]
@@ -174,9 +173,8 @@
       (with-unlock view-text
         (let ([stx (list-ref function-calls i)]
               [hi-stxs (if (= (add1 i) limit) null (list (list-ref last-app-list (add1 i))))])
-          (printf "add-syntax: hi-stxs = ~a\n" hi-stxs)
-          (set! display (print-syntax-to-editor stx view-text controller
-                                                (send view-text last-position)))
+          (define display (print-syntax-to-editor stx view-text controller
+                                                  (send view-text last-position)))
           (send view-text insert "\n")
           (define range (send/i display display<%> get-range))
           (define offset (send/i display display<%> get-start-position))
@@ -213,8 +211,7 @@
       (when (>= step limit) (send next-button enable #f))
       (cond 
         [(odd? step) 
-         (with-unlock view-text
-           (send view-text erase))
+         (erase-all)
          (add-syntax (sub1 step))]
         [else 
          (add-text "\n")
@@ -226,8 +223,7 @@
     (define/private (update-trace-view-backward)
       (send next-button enable #t)
       (when (= step 1) (send previous-button enable #f))
-      (with-unlock view-text
-        (send view-text erase))
+      (erase-all)
       (cond
         [(odd? step)
          (add-syntax (sub1 step))]
