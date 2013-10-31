@@ -3,6 +3,7 @@
          racket/gui/base
          framework
          unstable/class-iop
+         unstable/gui/notify
          "interface.rkt"
          "controller.rkt"
          "syntax-display.rkt"
@@ -178,6 +179,7 @@
           (send view-text insert "\n")
           (define range (send/i display display<%> get-range))
           (define offset (send/i display display<%> get-start-position))
+          (send/i controller selection-manager<%> set-selected-syntax (new notify-box% (value #f)))
           (send/i display display<%> highlight-syntaxes hi-stxs highlight-color)
           (send display refresh))))
 
@@ -185,7 +187,7 @@
       (with-unlock view-text
         (send view-text erase))
       (send/i controller displays-manager<%> remove-all-syntax-displays))
-
+    
     (define/public (get-text) view-text)
     
     (define/public (initialize-view-text)
@@ -206,35 +208,29 @@
       (initialize-navigator)
       (update-trace-view-forward))
     
-    (define/private (update-trace-view-forward)
-      (send previous-button enable #t)
-      (when (>= step limit) (send next-button enable #f))
+    (define/private (update-trace-view)
+      (erase-all)
       (cond 
         [(odd? step) 
-         (erase-all)
          (add-syntax (sub1 step))]
         [else 
-         (add-text "\n")
-         (add-text (make-object image-snip% (make-object bitmap% (collection-file-path "red-arrow.bmp" "icons") 'bmp)))
-         (add-text "\n\n")
-         (add-syntax (sub1 step))])
-      (send status-msg set-label (format "Trace ~a of ~a" step limit)))
-    
-    (define/private (update-trace-view-backward)
-      (send next-button enable #t)
-      (when (= step 1) (send previous-button enable #f))
-      (erase-all)
-      (cond
-        [(odd? step)
-         (add-syntax (sub1 step))]
-        [else
          (add-syntax (- step 2))
          (add-text "\n")
          (add-text (make-object image-snip% (make-object bitmap% (collection-file-path "red-arrow.bmp" "icons") 'bmp)))
          (add-text "\n\n")
          (add-syntax (sub1 step))])
-      (send status-msg set-label (format "Trace ~a of ~a" step limit)))
-
+      (send status-msg set-label (format "Trace ~a of ~a" step limit)))      
+    
+    (define/private (update-trace-view-forward)
+      (send previous-button enable #t)
+      (when (>= step limit) (send next-button enable #f))
+      (update-trace-view))
+    
+    (define/private (update-trace-view-backward)
+      (send next-button enable #t)
+      (when (= step 1) (send previous-button enable #f))
+      (update-trace-view))
+    
     ;; Initialize
     (super-new)
     (initialize-view-text)
