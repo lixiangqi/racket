@@ -61,7 +61,7 @@
     (super-new)
     (listen-selected-syntax
      (lambda (new-value)
-       (for-each (lambda (display) (printf "selection-manager-mixin called...new-value=~a, displays=~a\n" new-value displays) (send/i display display<%> refresh))
+       (for-each (lambda (display) #;(printf "selection-manager-mixin called...new-value=~a\n" new-value) (send/i display display<%> refresh))
                  displays)))))
 
 ;; mark-manager-mixin

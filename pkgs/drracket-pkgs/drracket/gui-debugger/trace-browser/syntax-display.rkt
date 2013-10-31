@@ -93,11 +93,13 @@
                    (relative->text-position (cdr r)))))
          (set! to-undo-styles null))
         (uninterruptible
+         (printf "calling apply-extra-styles ...\n")
          (apply-extra-styles))
         (let ([selected-syntax
                (send/i controller selection-manager<%>
                        get-selected-syntax)])
           (uninterruptible
+           (printf "calling apply-selection-styles ...\n")
            (apply-selection-styles selected-syntax)))))
 
     ;; get-range : -> range<%>
@@ -122,6 +124,7 @@
     ;; apply-extra-styles : -> void
     ;; Applies externally-added styles (such as highlighting)
     (define/private (apply-extra-styles)
+      (printf "apply-extra-styles: extra-styles = ~a\n" (hash-keys extra-styles))
       (for ([(stx deltas) (in-hash extra-styles)])
         (for ([r (in-list (send/i range range<%> get-ranges stx))])
           (for ([delta (in-list deltas)])
@@ -130,6 +133,7 @@
     ;; apply-selection-styles : syntax -> void
     ;; Styles subterms eq to the selected syntax
     (define/private (apply-selection-styles selected-syntax)
+      (printf "apply-second: selected-syntax = ~a\n\ns" selected-syntax)
       (for ([r (in-list (send/i range range<%> get-ranges selected-syntax))])
         (restyle-range r select-d #t)))
 

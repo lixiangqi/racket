@@ -174,6 +174,7 @@
       (with-unlock view-text
         (let ([stx (list-ref function-calls i)]
               [hi-stxs (if (= (add1 i) limit) null (list (list-ref last-app-list (add1 i))))])
+          (printf "add-syntax: hi-stxs = ~a\n" hi-stxs)
           (set! display (print-syntax-to-editor stx view-text controller
                                                 (send view-text last-position)))
           (send view-text insert "\n")
