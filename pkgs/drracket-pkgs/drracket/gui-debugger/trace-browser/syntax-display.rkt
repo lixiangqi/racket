@@ -130,6 +130,8 @@
     ;; apply-selection-styles : syntax -> void
     ;; Styles subterms eq to the selected syntax
     (define/private (apply-selection-styles selected-syntax)
+      #;(for ([r (in-list (send/i range range<%> get-ranges selected-syntax))])
+        (send text delete (relative->text-position (car r)) (relative->text-position (cdr r))))
       (for ([r (in-list (send/i range range<%> get-ranges selected-syntax))])
         (restyle-range r select-d #t)))
 

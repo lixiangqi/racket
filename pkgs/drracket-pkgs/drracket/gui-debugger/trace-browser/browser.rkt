@@ -34,7 +34,6 @@
            [traces empty]
            [current-marks empty]
            [function-calls empty]
-           [var-tables empty]
            [last-app-list empty]
            [step 1]
            [limit 0])
@@ -201,7 +200,7 @@
     (define/private (update-view-text n)
       (set! current-marks (continuation-mark-set-first (trace-struct-ccm (list-ref traces n)) 'inspect null))
       (set! function-calls (map first current-marks))
-      (set! var-tables (map second current-marks))
+      (send view-text set-var-table (map second current-marks))
       (set! last-app-list (map third current-marks))
       (set! limit (length function-calls))
       (set! step 1)

@@ -86,7 +86,13 @@
                  (text:foreground-color-mixin
                    (editor:standard-style-list-mixin text:basic%)))))
       (inherit set-autowrap-bitmap get-style-list)
+      
+      (field [var-table (make-hasheq)])
+      
+      (define/public (set-var-table t) (set! var-table t))
+      
       (define/override (default-style-name) browser-text-default-style-name)
+      
       (super-new (auto-wrap #t))
       (let* ([sl (get-style-list)]
              [standard (send sl find-named-style (editor:get-default-color-style-name))]
