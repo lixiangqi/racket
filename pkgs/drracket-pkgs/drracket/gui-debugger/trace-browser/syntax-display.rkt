@@ -130,11 +130,16 @@
     ;; apply-selection-styles : syntax -> void
     ;; Styles subterms eq to the selected syntax
     (define/private (apply-selection-styles selected-syntax)
-      #;(for ([r (in-list (send/i range range<%> get-ranges selected-syntax))])
-        (send text delete (relative->text-position (car r)) (relative->text-position (cdr r))))
-      (for ([r (in-list (send/i range range<%> get-ranges selected-syntax))])
-        (restyle-range r select-d #t)))
-
+      (when (syntax? selected-syntax)
+        (let ([value (send text lookup-var-table (syntax-position selected-syntax))])
+          (if (eq? value 'unfound)
+              (for ([r (in-list (send/i range range<%> get-ranges selected-syntax))])
+                (restyle-range r select-d #t))
+              (for ([r (in-list (send/i range range<%> get-ranges selected-syntax))])
+                (with-unlock text
+                  (send text delete (relative->text-position (car r)) (relative->text-position (cdr r)))
+                  (send text insert (format "~v" value) (relative->text-position (car r)))))))))
+    
     ;; restyle-range : (cons num num) style-delta% boolean -> void
     (define/private (restyle-range r style need-undo?)
       (when need-undo? (set! to-undo-styles (cons r to-undo-styles)))

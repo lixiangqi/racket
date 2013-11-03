@@ -33,6 +33,7 @@
     (field [controller (new controller%)]
            [traces empty]
            [current-marks empty]
+           [var-tables (make-hasheq)]
            [function-calls empty]
            [last-app-list empty]
            [step 1]
@@ -200,7 +201,7 @@
     (define/private (update-view-text n)
       (set! current-marks (continuation-mark-set-first (trace-struct-ccm (list-ref traces n)) 'inspect null))
       (set! function-calls (map first current-marks))
-      (send view-text set-var-table (map second current-marks))
+      (set! var-tables (map (lambda (m) ((second m))) current-marks))
       (set! last-app-list (map third current-marks))
       (set! limit (length function-calls))
       (set! step 1)
@@ -210,9 +211,12 @@
     (define/private (update-trace-view)
       (erase-all)
       (cond 
-        [(odd? step) 
+        [(odd? step)
+         (send view-text set-var-table (list-ref var-tables (sub1 step)))
          (add-syntax (sub1 step))]
         [else 
+         (send view-text set-var-table (cons (list-ref var-tables (- step 2))
+                                             (list-ref var-tables (sub1 step))))
          (add-syntax (- step 2))
          (add-text "\n")
          (add-text (make-object image-snip% (make-object bitmap% (collection-file-path "red-arrow.bmp" "icons") 'bmp)))

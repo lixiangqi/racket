@@ -91,6 +91,14 @@
       
       (define/public (set-var-table t) (set! var-table t))
       
+      (define/public (lookup-var-table pos)
+        (if (pair? var-table)
+            (let ([first-value (hash-ref (car var-table) pos (lambda () 'first-unfound))])
+              (if (eq? first-value 'first-unfound)
+                  (hash-ref (cdr var-table) pos (lambda () 'unfound))
+                  first-value))
+            (hash-ref var-table pos (lambda () 'unfound))))
+      
       (define/override (default-style-name) browser-text-default-style-name)
       
       (super-new (auto-wrap #t))
