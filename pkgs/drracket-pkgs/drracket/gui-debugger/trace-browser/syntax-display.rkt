@@ -138,7 +138,7 @@
               (for ([r (in-list (send/i range range<%> get-ranges selected-syntax))])
                 (with-unlock text
                   (send text delete (relative->text-position (car r)) (relative->text-position (cdr r)))
-                  (send text insert (format "~v" value) (relative->text-position (car r)))))))))
+                  (send text insert (format "~v" value) (relative->text-position (car r)) (relative->text-position (cdr r)))))))))
     
     ;; restyle-range : (cons num num) style-delta% boolean -> void
     (define/private (restyle-range r style need-undo?)

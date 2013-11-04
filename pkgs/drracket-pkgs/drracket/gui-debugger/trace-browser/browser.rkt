@@ -110,31 +110,32 @@
     (define previous-button 'uninitialized-previous-button)
     (define next-button 'uninitialized-next-button)
     (define status-msg 'uninitialized-status-msg)
+    (define slider-panel 'uninitialized-slider-panel)
     (define slider 'uninitialized-slider)
     
-    (define/private (initialize-navigator)
-      (let ([navigate-previous-icon (compiled-bitmap (step-back-icon #:color run-icon-color #:height (toolbar-icon-height)))]
-            [navigate-next-icon (compiled-bitmap (step-icon #:color run-icon-color #:height (toolbar-icon-height)))]
-            [slider-panel (new horizontal-panel% [parent view-panel] [stretchable-width #f] [stretchable-height #f])])
-        (set! slider (new slider% 
-                          [label #f] 
-                          [min-value 1] 
-                          [max-value limit] 
-                          [parent slider-panel] 
-                          [style (list 'horizontal 'plain)]
-                          [callback (lambda (b e) (set-current-step (send slider get-value)))]))
-        (set! navigator (new horizontal-panel% [parent view-panel] [stretchable-height #f] [alignment '(center center)]))
-        (new message% [label ""] [parent navigator] [stretchable-width #t])
-        (set! previous-button (new button% 
-                                   [label (list navigate-previous-icon "Step" 'left)] 
-                                   [parent navigator] 
-                                   [callback (lambda (b e) (navigate-previous))]
-                                   [enabled #f]))
-        (set! next-button (new button% 
-                               [label (list navigate-next-icon "Step" 'right)]
-                               [parent navigator]
-                               [callback (lambda (b e) (navigate-next))]))
-        (set! status-msg (new message% [label ""] [parent navigator] [stretchable-width #t]))))
+    ;; Initialize navigator
+    (let ([navigate-previous-icon (compiled-bitmap (step-back-icon #:color run-icon-color #:height (toolbar-icon-height)))]
+          [navigate-next-icon (compiled-bitmap (step-icon #:color run-icon-color #:height (toolbar-icon-height)))])
+      (set! slider-panel (new horizontal-panel% [parent view-panel] [stretchable-width #f] [stretchable-height #f]))
+      (set! slider (new slider% 
+                        [label #f] 
+                        [min-value 1] 
+                        [max-value 2] 
+                        [parent slider-panel] 
+                        [style (list 'horizontal 'plain)]
+                        [callback (lambda (b e) (set-current-step (send slider get-value)))]))
+      (set! navigator (new horizontal-panel% [parent view-panel] [stretchable-height #f] [alignment '(center center)]))
+      (new message% [label ""] [parent navigator] [stretchable-width #t])
+      (set! previous-button (new button% 
+                                 [label (list navigate-previous-icon "Step" 'left)] 
+                                 [parent navigator] 
+                                 [callback (lambda (b e) (navigate-previous))]
+                                 [enabled #f]))
+      (set! next-button (new button% 
+                             [label (list navigate-next-icon "Step" 'right)]
+                             [parent navigator]
+                             [callback (lambda (b e) (navigate-next))]))
+      (set! status-msg (new message% [label ""] [parent navigator] [stretchable-width #t])))
     
     (define/private (navigate-previous)
       (set! step (sub1 step))
@@ -205,7 +206,8 @@
       (set! last-app-list (map third current-marks))
       (set! limit (length function-calls))
       (set! step 1)
-      (initialize-navigator)
+      ; show and update
+      ;(initialize-navigator)
       (update-trace-view-forward))
     
     (define/private (update-trace-view)
