@@ -37,7 +37,8 @@
            [function-calls empty]
            [last-app-list empty]
            [step 1]
-           [limit 0])
+           [limit 0]
+           [show? #f])
     
     (define log-text
       (new (class text%
@@ -113,17 +114,10 @@
     (define slider-panel 'uninitialized-slider-panel)
     (define slider 'uninitialized-slider)
     
-    ;; Initialize navigator
+    ;; Initialize navigator 
     (let ([navigate-previous-icon (compiled-bitmap (step-back-icon #:color run-icon-color #:height (toolbar-icon-height)))]
           [navigate-next-icon (compiled-bitmap (step-icon #:color run-icon-color #:height (toolbar-icon-height)))])
       (set! slider-panel (new horizontal-panel% [parent view-panel] [stretchable-width #f] [stretchable-height #f]))
-      (set! slider (new slider% 
-                        [label #f] 
-                        [min-value 1] 
-                        [max-value 2] 
-                        [parent slider-panel] 
-                        [style (list 'horizontal 'plain)]
-                        [callback (lambda (b e) (set-current-step (send slider get-value)))]))
       (set! navigator (new horizontal-panel% [parent view-panel] [stretchable-height #f] [alignment '(center center)]))
       (new message% [label ""] [parent navigator] [stretchable-width #t])
       (set! previous-button (new button% 
@@ -136,7 +130,7 @@
                              [parent navigator]
                              [callback (lambda (b e) (navigate-next))]))
       (set! status-msg (new message% [label ""] [parent navigator] [stretchable-width #t])))
-    
+       
     (define/private (navigate-previous)
       (set! step (sub1 step))
       (send slider set-value step)
@@ -200,14 +194,24 @@
                                           (send view-text paragraph-end-position 0)))))
     
     (define/private (update-view-text n)
+      (cond 
+        [show? (send slider-panel delete-child slider)]
+        [else
+         (send view-panel change-children (lambda (l) (append l (list slider-panel navigator))))
+         (set! show? #t)])
       (set! current-marks (continuation-mark-set-first (trace-struct-ccm (list-ref traces n)) 'inspect null))
       (set! function-calls (map first current-marks))
       (set! var-tables (map (lambda (m) ((second m))) current-marks))
       (set! last-app-list (map third current-marks))
       (set! limit (length function-calls))
       (set! step 1)
-      ; show and update
-      ;(initialize-navigator)
+      (set! slider (new slider% 
+                        [label #f] 
+                        [min-value 1] 
+                        [max-value limit] 
+                        [parent slider-panel] 
+                        [style (list 'horizontal 'plain)]
+                        [callback (lambda (b e) (set-current-step (send slider get-value)))]))
       (update-trace-view-forward))
     
     (define/private (update-trace-view)
@@ -241,4 +245,5 @@
     (initialize-view-text)
     (send split-panel begin-container-sequence)
     (send split-panel set-percentages (list 1/3 2/3))
+    (send view-panel change-children (lambda (l) (remove* (list slider-panel navigator) l eq?)))
     (send split-panel end-container-sequence)))
