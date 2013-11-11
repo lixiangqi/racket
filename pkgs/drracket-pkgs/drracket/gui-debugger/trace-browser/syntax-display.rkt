@@ -131,6 +131,10 @@
     ;; Styles subterms eq to the selected syntax
     (define/private (apply-selection-styles selected-syntax)
       (when (syntax? selected-syntax)
+        (printf "-----------------\n")
+        (printf "ranges: ~a\n" (send range get))     
+        
+        
         (let* ([value (send text lookup-var-table (syntax-position selected-syntax))]
                [result (format "~v" value)])
           (if (eq? value 'unfound)

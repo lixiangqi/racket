@@ -130,6 +130,8 @@
     (define subs (reverse (send range-builder get-subs)))
 
     (define/public (get-ranges obj)
+      ;(printf "------------------------\n")
+     ; (printf "get-ranges: ranges  = ~a\n" ranges)
       (hash-ref ranges obj null))
 
     (define/public (get-treeranges)
@@ -141,15 +143,26 @@
     (define/public (get-identifier-list)
       identifier-list)
     
+    (define/public (get)
+      ranges)
+    
     (define/public (shift-range pos len)
       (let ([shifts null])
         (hash-for-each
          ranges
          (lambda (stx range)
-           (when (>= (car range) pos)
-             (hash-remove! ranges stx)
-             (set! shifts (cons (cons stx (cons (car range) (+ (cdr range) len))) shifts)))))
-        (for-each (lambda (i) (hash-set! ranges (car i) (cdr i))) shifts)))
+           (for ([r (in-list range)])
+             (cond
+               [(or (= (car r) pos)
+                    (and (< (car r) pos) (>= (cdr r) (+ pos len))))
+                (hash-remove! ranges stx)
+                (set! shifts (cons (cons stx (cons (cons (car r) (+ (cdr r) len)) null)) shifts))]
+               [(> (car r) pos)
+                (hash-remove! ranges stx)
+                (set! shifts (cons (cons stx (cons (cons (+ (car r) len) (cdr r)) null)) shifts))]))))
+        (for-each (lambda (i) (hash-set! ranges (car i) (cdr i))) shifts)
+        (printf "shift-range: ranges = ~a\n" ranges)
+        ))
     
     (define sorted-ranges
       (delay
