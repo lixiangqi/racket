@@ -90,7 +90,7 @@
 
     (define (get-ranges obj)
       (hash-ref ranges obj null))
-
+    
     (define/public (range:get-ranges) ranges)
 
     ;; ----
@@ -140,7 +140,17 @@
 
     (define/public (get-identifier-list)
       identifier-list)
-
+    
+    (define/public (shift-range pos len)
+      (let ([shifts null])
+        (hash-for-each
+         ranges
+         (lambda (stx range)
+           (when (>= (car range) pos)
+             (hash-remove! ranges stx)
+             (set! shifts (cons (cons stx (cons (car range) (+ (cdr range) len))) shifts)))))
+        (for-each (lambda (i) (hash-set! ranges (car i) (cdr i))) shifts)))
+    
     (define sorted-ranges
       (delay
         (sort 
@@ -151,5 +161,4 @@
                    (map (lambda (v) (make-range k (car v) (cdr v))) vs))))
          (lambda (x y)
            (>= (- (range-end x) (range-start x))
-               (- (range-end y) (range-start y)))))))
-    ))
+               (- (range-end y) (range-start y)))))))))
