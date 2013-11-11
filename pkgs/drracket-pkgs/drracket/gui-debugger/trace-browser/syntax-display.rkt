@@ -131,22 +131,19 @@
     ;; Styles subterms eq to the selected syntax
     (define/private (apply-selection-styles selected-syntax)
       (when (syntax? selected-syntax)
-        (printf "-----------------\n")
-        (printf "ranges: ~a\n" (send range get))     
-        
-        
         (let* ([value (send text lookup-var-table (syntax-position selected-syntax))]
                [result (format "~v" value)])
           (if (eq? value 'unfound)
               (for ([r (in-list (send/i range range<%> get-ranges selected-syntax))])
-                (restyle-range r select-d #t))
+                (void)
+                #;(restyle-range r select-d #t))
               (for ([r (in-list (send/i range range<%> get-ranges selected-syntax))])
                 (let ([start (relative->text-position (car r))]
                       [end (relative->text-position (cdr r))])
                   (with-unlock text
                     (send text delete start end)
                     (send text insert result start)
-                    (send range shift-range start (string-length result)))))))))
+                    (send range shift-range start (string-length result) start-position))))))))
     
     ;; restyle-range : (cons num num) style-delta% boolean -> void
     (define/private (restyle-range r style need-undo?)

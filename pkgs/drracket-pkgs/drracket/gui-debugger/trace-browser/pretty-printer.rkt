@@ -146,23 +146,23 @@
     (define/public (get)
       ranges)
     
-    (define/public (shift-range pos len)
+    (define/public (shift-range pos len start-position)
       (let ([shifts null])
         (hash-for-each
          ranges
          (lambda (stx range)
            (for ([r (in-list range)])
-             (cond
-               [(or (= (car r) pos)
-                    (and (< (car r) pos) (>= (cdr r) (+ pos len))))
-                (hash-remove! ranges stx)
-                (set! shifts (cons (cons stx (cons (cons (car r) (+ (cdr r) len)) null)) shifts))]
-               [(> (car r) pos)
-                (hash-remove! ranges stx)
-                (set! shifts (cons (cons stx (cons (cons (+ (car r) len) (cdr r)) null)) shifts))]))))
-        (for-each (lambda (i) (hash-set! ranges (car i) (cdr i))) shifts)
-        (printf "shift-range: ranges = ~a\n" ranges)
-        ))
+             (let ([start-pos (+ (car r) start-position)]
+                   [end-pos (+ (cdr r) start-position)])
+               (cond
+                 [(or (= start-pos pos)
+                      (and (< start-pos pos) (>= end-pos (+ pos len))))
+                  (hash-remove! ranges stx)
+                  (set! shifts (cons (cons stx (cons (cons (car r) (+ (cdr r) len)) null)) shifts))]
+                 [(> start-pos pos)
+                  (hash-remove! ranges stx)
+                  (set! shifts (cons (cons stx (cons (cons (+ (car r) len) (+ (cdr r) len)) null)) shifts))])))))
+        (for-each (lambda (i) (hash-set! ranges (car i) (cdr i))) shifts)))
     
     (define sorted-ranges
       (delay
