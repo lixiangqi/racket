@@ -92,13 +92,13 @@
                    (relative->text-position (car r))
                    (relative->text-position (cdr r)))))
          (set! to-undo-styles null))
-        (uninterruptible
-         (apply-extra-styles))
         (let ([selected-syntax
                (send/i controller selection-manager<%>
                        get-selected-syntax)])
           (uninterruptible
-           (apply-selection-styles selected-syntax)))))
+           (apply-selection-styles selected-syntax)))
+        (uninterruptible
+         (apply-highlighting))))
 
     ;; get-range : -> range<%>
     (define/public (get-range) range)
@@ -119,9 +119,8 @@
     ;; Secondary Styling
     ;; May change in response to user actions
 
-    ;; apply-extra-styles : -> void
-    ;; Applies externally-added styles (such as highlighting)
-    (define/private (apply-extra-styles)
+    ;; apply-highlighting : -> void
+    (define/private (apply-highlighting)
       (for ([(stx deltas) (in-hash extra-styles)])
         (for ([r (in-list (send/i range range<%> get-ranges stx))])
           (for ([delta (in-list deltas)])
