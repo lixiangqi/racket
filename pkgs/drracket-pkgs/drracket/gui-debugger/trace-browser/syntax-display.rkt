@@ -135,7 +135,6 @@
                [result (format "~v" value)])
           (if (eq? value 'unfound)
               (for ([r (in-list (send/i range range<%> get-ranges selected-syntax))])
-                (void)
                 (restyle-range r select-d #t))
               (for ([r (in-list (send/i range range<%> get-ranges selected-syntax))])
                 (let* ([start (relative->text-position (car r))]
@@ -145,6 +144,7 @@
                     (send text delete start end)
                     (send text insert result start))
                   (send range shift-range start end offset start-position)
+                  (set! end-position (+ end-position offset))
                   (add-clickbacks)))))))
     
     ;; restyle-range : (cons num num) style-delta% boolean -> void
