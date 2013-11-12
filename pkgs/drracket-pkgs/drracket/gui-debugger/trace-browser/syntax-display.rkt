@@ -53,11 +53,7 @@
     ;; Styles to be re-applied on every refresh.
     (define extra-styles (make-hasheq))
 
-    ;; to-undo-styles : (listof (cons nat nat))
-    ;; Ranges to unbold or unhighlight when selection changes.
-    ;; FIXME: ought to be managed by text:region-data (to auto-update ranges)
-    ;;   until then, positions are relative
-    (define to-undo-styles null)
+    (define to-undo-syntaxes null)
 
     ;; initialize : -> void
     (define/private (initialize)
@@ -87,20 +83,19 @@
       (with-unlock text
         (uninterruptible
          (let ([undo-select/highlight-d (get-undo-select/highlight-d)])
-           (for ([r (in-list to-undo-styles)])
-             (send text change-style undo-select/highlight-d
-                   (relative->text-position (car r))
-                   (relative->text-position (cdr r)))))
-         (set! to-undo-styles null))
+           (for ([stx (in-list to-undo-syntaxes)])
+             (for ([r (in-list (send/i range range<%> get-ranges stx))])
+               (send text change-style undo-select/highlight-d
+                     (relative->text-position (car r))
+                     (relative->text-position (cdr r))))))
+         (set! to-undo-syntaxes null))
         (uninterruptible
          (apply-highlight))
         (let ([selected-syntax
                (send/i controller selection-manager<%>
                        get-selected-syntax)])
           (uninterruptible
-           (apply-selection-styles selected-syntax))
-          (uninterruptible
-           (apply-bound-var-highlight selected-syntax)))))
+           (apply-selection-callback selected-syntax)))))
 
     ;; get-range : -> range<%>
     (define/public (get-range) range)
@@ -126,38 +121,38 @@
       (for ([(stx deltas) (in-hash extra-styles)])
         (for ([r (in-list (send/i range range<%> get-ranges stx))])
           (for ([delta (in-list deltas)])
-            (restyle-range r delta #t)))))
-
-    ;; apply-selection-styles : syntax -> void
-    ;; Styles subterms eq to the selected syntax
-    (define/private (apply-selection-styles selected-syntax)
-      (when (syntax? selected-syntax)
-        (let* ([value (send text lookup-var-table (syntax-position selected-syntax))]
-               [result (format "~v" value)])
-          (unless (eq? value 'unfound)
-            (for ([r (in-list (send/i range range<%> get-ranges selected-syntax))])
-              (let* ([start (relative->text-position (car r))]
-                     [end (relative->text-position (cdr r))]
-                     [offset (+ (string-length result) (- start end))])
-                (with-unlock text
-                  (send text delete start end)
-                  (send text insert result start))
-                (send range shift-range start end offset start-position)
-                (set! end-position (+ end-position offset))
-                (add-clickbacks)))
-            (for ([r (in-list (send/i range range<%> get-ranges selected-syntax))])
-              (restyle-range r select-d #t))))))
+            (restyle-range stx r delta #t)))))
     
-    (define/private (apply-bound-var-highlight selected-syntax)
+    (define/private (display-id-value stx)
+      (let* ([value (send text lookup-var-table (syntax-position stx))]
+             [result (format "~v" value)])
+        (unless (eq? value 'unfound)
+          (for ([r (in-list (send/i range range<%> get-ranges stx))])
+            (let* ([start (relative->text-position (car r))]
+                   [end (relative->text-position (cdr r))]
+                   [offset (+ (string-length result) (- start end))])
+              (with-unlock text
+                (send text delete start end)
+                (send text insert result start))
+              (send range shift-range start end offset start-position)
+              (set! end-position (+ end-position offset)))))))
+    
+    (define/private (apply-selection-callback selected-syntax)
       (when (identifier? selected-syntax)
+        (display-id-value selected-syntax)
+        (for ([r (in-list (send/i range range<%> get-ranges selected-syntax))])
+          (restyle-range selected-syntax r select-d #t))
         (for ([id (in-list (send/i range range<%> get-identifier-list))])
           (when (bound-identifier=? selected-syntax id)
+            (display-id-value id)
             (for ([r (in-list (send/i range range<%> get-ranges id))])
-              (restyle-range r (highlight-style-delta "yellow") #t))))))
+              (restyle-range id r (highlight-style-delta "yellow") #t))))
+        (add-clickbacks)))
+        
     
-    ;; restyle-range : (cons num num) style-delta% boolean -> void
-    (define/private (restyle-range r style need-undo?)
-      (when need-undo? (set! to-undo-styles (cons r to-undo-styles)))
+    ;; restyle-range : syntax (cons num num) style-delta% boolean -> void
+    (define/private (restyle-range stx r style need-undo?)
+      (when need-undo? (set! to-undo-syntaxes (cons stx to-undo-syntaxes)))
       (send text change-style style
             (relative->text-position (car r))
             (relative->text-position (cdr r))))
