@@ -130,23 +130,18 @@
     (define subs (reverse (send range-builder get-subs)))
 
     (define/public (get-ranges obj)
-      ;(printf "------------------------\n")
-     ; (printf "get-ranges: ranges  = ~a\n" ranges)
       (hash-ref ranges obj null))
 
     (define/public (get-treeranges)
       subs)
 
     (define/public (all-ranges)
-      (force sorted-ranges))
+      (sorted-ranges))
 
     (define/public (get-identifier-list)
       identifier-list)
     
-    (define/public (get)
-      ranges)
-    
-    (define/public (shift-range pos len start-position)
+    (define/public (shift-range pos end offset start-position)
       (let ([shifts null])
         (hash-for-each
          ranges
@@ -156,22 +151,21 @@
                    [end-pos (+ (cdr r) start-position)])
                (cond
                  [(or (= start-pos pos)
-                      (and (< start-pos pos) (>= end-pos (+ pos len))))
+                      (and (< start-pos pos) (>= end-pos end)))
                   (hash-remove! ranges stx)
-                  (set! shifts (cons (cons stx (cons (cons (car r) (+ (cdr r) len)) null)) shifts))]
+                  (set! shifts (cons (cons stx (cons (cons (car r) (+ (cdr r) offset)) null)) shifts))]
                  [(> start-pos pos)
                   (hash-remove! ranges stx)
-                  (set! shifts (cons (cons stx (cons (cons (+ (car r) len) (+ (cdr r) len)) null)) shifts))])))))
+                  (set! shifts (cons (cons stx (cons (cons (+ (car r) offset) (+ (cdr r) offset)) null)) shifts))])))))
         (for-each (lambda (i) (hash-set! ranges (car i) (cdr i))) shifts)))
     
-    (define sorted-ranges
-      (delay
-        (sort 
-         (apply append 
-                (hash-map
-                 ranges
-                 (lambda (k vs)
-                   (map (lambda (v) (make-range k (car v) (cdr v))) vs))))
-         (lambda (x y)
-           (>= (- (range-end x) (range-start x))
-               (- (range-end y) (range-start y)))))))))
+    (define (sorted-ranges)
+      (sort 
+       (apply append 
+              (hash-map
+               ranges
+               (lambda (k vs)
+                 (map (lambda (v) (make-range k (car v) (cdr v))) vs))))
+       (lambda (x y)
+         (>= (- (range-end x) (range-start x))
+             (- (range-end y) (range-start y))))))))

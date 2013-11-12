@@ -1,5 +1,6 @@
 #lang racket/base
 (require racket/class
+         racket/dict
          racket/gui/base
          racket/promise
          data/interval-map
@@ -67,16 +68,15 @@
     ;; add-clickbacks : -> void
     (define/private (add-clickbacks)
       (define mapping (make-interval-map))
-      (define lazy-interval-map-init
-        (delay
-          (uninterruptible
-           (for ([range (send/i range range<%> all-ranges)])
-             (let ([stx (range-obj range)]
-                   [start (range-start range)]
-                   [end (range-end range)])
-               (interval-map-set! mapping (+ start-position start) (+ start-position end) stx))))))
+      (define (lazy-interval-map-init)
+        (uninterruptible
+         (for ([range (send/i range range<%> all-ranges)])
+           (let ([stx (range-obj range)]
+                 [start (range-start range)]
+                 [end (range-end range)])
+             (interval-map-set! mapping (+ start-position start) (+ start-position end) stx)))))
       (define (the-callback position)
-        (force lazy-interval-map-init)
+        (lazy-interval-map-init)
         (send/i controller selection-manager<%> set-selected-syntax
                 (interval-map-ref mapping position #f)))
       (send text set-clickregion start-position end-position the-callback))
@@ -136,14 +136,16 @@
           (if (eq? value 'unfound)
               (for ([r (in-list (send/i range range<%> get-ranges selected-syntax))])
                 (void)
-                #;(restyle-range r select-d #t))
+                (restyle-range r select-d #t))
               (for ([r (in-list (send/i range range<%> get-ranges selected-syntax))])
-                (let ([start (relative->text-position (car r))]
-                      [end (relative->text-position (cdr r))])
+                (let* ([start (relative->text-position (car r))]
+                       [end (relative->text-position (cdr r))]
+                       [offset (+ (string-length result) (- start end))])
                   (with-unlock text
                     (send text delete start end)
-                    (send text insert result start)
-                    (send range shift-range start (string-length result) start-position))))))))
+                    (send text insert result start))
+                  (send range shift-range start end offset start-position)
+                  (add-clickbacks)))))))
     
     ;; restyle-range : (cons num num) style-delta% boolean -> void
     (define/private (restyle-range r style need-undo?)
