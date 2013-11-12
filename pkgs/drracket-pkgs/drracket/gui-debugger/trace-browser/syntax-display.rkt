@@ -148,7 +148,6 @@
             (for ([r (in-list (send/i range range<%> get-ranges id))])
               (restyle-range id r (highlight-style-delta "yellow") #t))))
         (add-clickbacks)))
-        
     
     ;; restyle-range : syntax (cons num num) style-delta% boolean -> void
     (define/private (restyle-range stx r style need-undo?)
