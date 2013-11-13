@@ -170,6 +170,7 @@
         (let ([stx (list-ref function-calls i)]
               [hi-stxs (if (= (add1 i) limit) null (list (list-ref last-app-list (add1 i))))])
           (define display (print-syntax-to-editor stx view-text controller
+                                                  (calculate-columns)
                                                   (send view-text last-position)))
           (send view-text insert "\n")
           (define range (send/i display display<%> get-range))
@@ -177,6 +178,19 @@
           (send/i controller selection-manager<%> set-selected-syntax (new notify-box% (value #f)))
           (send/i display display<%> highlight-syntaxes hi-stxs highlight-color)
           (send display refresh))))
+    
+    (define/private (code-style text)
+      (let* ([style-list (send text get-style-list)]
+             [style (send style-list find-named-style (editor:get-default-color-style-name))])
+        style))
+    
+    (define/private (calculate-columns)
+      (define style (code-style view-text))
+      (define char-width (send style get-text-width (send view-canvas get-dc)))
+      (let ([admin (send view-text get-admin)]
+            [w-box (box 0.0)])
+        (send admin get-view #f #f w-box #f)
+        (sub1 (inexact->exact (floor (/ (unbox w-box) char-width))))))
 
     (define/public (erase-all)
       (with-unlock view-text

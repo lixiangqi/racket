@@ -14,16 +14,15 @@
 (define-syntax-rule (uninterruptible e ...)
   (parameterize-break #f (begin e ...)))
 
-;; print-syntax-to-editor : syntax text controller<%> config number number
+;; print-syntax-to-editor : syntax text controller<%> number number
 ;;                       -> display<%>
 ;; Note: must call display<%>::refresh to finish styling.
-(define (print-syntax-to-editor stx text controller config
+(define (print-syntax-to-editor stx text controller columns
                                 [insertion-point (send text last-position)])
   (define output-port (open-output-string/count-lines))
   (define range (pretty-print-syntax stx 
                                      output-port 
-                                     (make-immutable-hasheq null)
-                                     #t))
+                                     columns))
   (define output-string (get-output-string output-port))
   (define output-length (sub1 (string-length output-string))) ;; skip final newline
   (with-unlock text
