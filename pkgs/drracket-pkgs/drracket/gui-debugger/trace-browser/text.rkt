@@ -105,6 +105,6 @@
       (let* ([sl (get-style-list)]
              [standard (send sl find-named-style (editor:get-default-color-style-name))]
              [browser-basic (send sl find-or-create-style standard
-                                  (make-object style-delta% 'change-family 'default))])
+                                  (make-object style-delta% 'change-family 'base))])
         (send sl new-named-style browser-text-default-style-name browser-basic))
       (set-autowrap-bitmap #f))))
