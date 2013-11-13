@@ -95,7 +95,7 @@
                
              )))
     
-    (struct trace-struct (id-stx value number ccm))
+    (struct trace-struct (id-stx value number inspect-stx ccm))
     
     (define main-panel
       (new vertical-panel% (parent parent)))
@@ -151,7 +151,7 @@
          (update-trace-view-backward)]))
     
     (define/public (set-traces trace) 
-      (set! traces (map (lambda (t) (trace-struct (first t) (second t) (third t) (fourth t))) trace)))
+      (set! traces (map (lambda (t) (trace-struct (first t) (second t) (third t) (fourth t) (fifth t))) trace)))
     
     (define/public (display-traces)
       (let ([logs (map (lambda (t) (format "~a: ~v\n" (syntax->datum (trace-struct-id-stx t)) (trace-struct-value t))) traces)])
@@ -168,7 +168,7 @@
     (define/public (add-syntax i #:highlight-color [highlight-color "LightCyan"])
       (with-unlock view-text
         (let ([stx (list-ref function-calls i)]
-              [hi-stxs (if (= (add1 i) limit) null (list (list-ref last-app-list (add1 i))))])
+              [hi-stxs (if (= (add1 i) limit) null (list (list-ref last-app-list i)))])
           (define display (print-syntax-to-editor stx view-text controller
                                                   (calculate-columns)
                                                   (send view-text last-position)))
@@ -214,9 +214,10 @@
          (send view-panel change-children (lambda (l) (append l (list slider-panel navigator))))
          (set! show? #t)])
       (set! current-marks (continuation-mark-set-first (trace-struct-ccm (list-ref traces n)) 'inspect null))
-      (set! function-calls (map first current-marks))
-      (set! var-tables (map (lambda (m) ((second m))) current-marks))
-      (set! last-app-list (map third current-marks))
+      (set! function-calls (reverse (map first current-marks)))
+      (set! var-tables (reverse (map (lambda (m) ((second m))) current-marks)))
+      (set! last-app-list (reverse (append (map third current-marks)
+                                           (list (trace-struct-inspect-stx (list-ref traces n))))))
       (set! limit (length function-calls))
       (set! step 1)
       (set! slider (new slider% 

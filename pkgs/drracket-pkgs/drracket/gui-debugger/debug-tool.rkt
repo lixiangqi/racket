@@ -685,13 +685,13 @@
                                       add-top-level-binding var rd/wr))]
                              [else (void)]))
                          ; record-log
-                         (lambda (id val num ccm)
+                         (lambda (id val num inspect-stx ccm)
                            (cond
                              [(filename->defs (robust-syntax-source id))
                               =>
                               (lambda (defs)
                                 (send (send defs get-tab)
-                                      update-logs id val num ccm))]
+                                      update-logs id val num inspect-stx ccm))]
                              [else (void)]))
                          (get-pos-table)
                          source))
@@ -877,9 +877,9 @@
                    (free-identifier=? var (caar bindings))) (cdar bindings)]
               [else (loop (rest bindings))])))
         
-        (define/public (update-logs id-stx val num ccm)
+        (define/public (update-logs id-stx val num inspect-stx ccm)
           (send (send (get-frame) get-trace-button) enable #t)
-          (set! traces (append traces (list (list id-stx val num ccm)))))
+          (set! traces (append traces (list (list id-stx val num inspect-stx ccm)))))
         
         (define/public (move-to-frame the-frame-num)
           (set-box! frame-num the-frame-num)

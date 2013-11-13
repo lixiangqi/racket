@@ -415,11 +415,9 @@
                                       (quasisyntax/loc expr
                                         (begin
                                           (#%plain-app . #,subexprs)
-;                                          (printf "-------------trace--------------\n")
-;                                          (for ([i (continuation-mark-set-first #f 'inspect null)])
-;                                            (printf "continuation clause=~a, table=~a, last-app=~a\n" (first i) ((second i)) (third i))
-;                                            (printf "****\n"))
-                                          (#%plain-app #,record-log #'var var num (current-continuation-marks)))))
+                                          (#%plain-app #,record-log #'var var num 
+                                                                    (hash-ref #,stx-table (syntax-position #'exprs) #f) 
+                                                                    (current-continuation-marks)))))
                                     (quasisyntax/loc expr
                                       (let ([orig-exp (hash-ref #,stx-table
                                                                (syntax-position #'exprs)
