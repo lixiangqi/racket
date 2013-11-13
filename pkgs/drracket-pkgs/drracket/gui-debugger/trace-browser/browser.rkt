@@ -220,6 +220,8 @@
                                            (list (trace-struct-inspect-stx (list-ref traces n))))))
       (set! limit (length function-calls))
       (set! step 1)
+      (send previous-button enable #t)
+      (send next-button enable #t)
       (set! slider (new slider% 
                         [label #f] 
                         [min-value 1] 
