@@ -146,15 +146,15 @@
               (set! end-position (+ end-position offset)))))))
     
     (define/private (apply-selection-callback selected-syntax)
-      (for ([r (in-list (send/i range range<%> get-ranges selected-syntax))])
-        (restyle-range selected-syntax r select-d #t))
       (when (identifier? selected-syntax)
         (for ([id (in-list (send/i range range<%> get-identifier-list))])
           (when (bound-identifier=? selected-syntax id)
             (display-id-value id (hash-ref values-displayed id #f))
             (for ([r (in-list (send/i range range<%> get-ranges id))])
               (restyle-range id r (highlight-style-delta "yellow") #t))))
-        (add-clickbacks)))
+        (add-clickbacks))
+      (for ([r (in-list (send/i range range<%> get-ranges selected-syntax))])
+        (restyle-range selected-syntax r select-d #t)))
     
     ;; restyle-range : syntax (cons num num) style-delta% boolean -> void
     (define/private (restyle-range stx r style need-undo?)
