@@ -54,6 +54,8 @@
     (define extra-styles (make-hasheq))
 
     (define to-undo-syntaxes null)
+    
+    (define values-displayed (make-hasheq))
 
     ;; initialize : -> void
     (define/private (initialize)
@@ -123,10 +125,16 @@
           (for ([delta (in-list deltas)])
             (restyle-range stx r delta #t)))))
     
-    (define/private (display-id-value stx)
-      (let* ([value (send text lookup-var-table (syntax-position stx))]
-             [result (format "~v" value)])
-        (unless (eq? value 'unfound)
+    (define/private (display-id-value stx displayed?)
+      (let* ([id-val (send text lookup-var-table (syntax-position stx))]
+             [value (if displayed?
+                        (syntax->datum stx) 
+                        id-val)]
+             [result (format "~a" value)])
+        (if displayed?
+            (hash-set! values-displayed stx #f)
+            (hash-set! values-displayed stx #t))
+        (unless (eq? id-val 'unfound)
           (for ([r (in-list (send/i range range<%> get-ranges stx))])
             (let* ([start (relative->text-position (car r))]
                    [end (relative->text-position (cdr r))]
@@ -138,13 +146,12 @@
               (set! end-position (+ end-position offset)))))))
     
     (define/private (apply-selection-callback selected-syntax)
+      (for ([r (in-list (send/i range range<%> get-ranges selected-syntax))])
+        (restyle-range selected-syntax r select-d #t))
       (when (identifier? selected-syntax)
-        (display-id-value selected-syntax)
-        (for ([r (in-list (send/i range range<%> get-ranges selected-syntax))])
-          (restyle-range selected-syntax r select-d #t))
         (for ([id (in-list (send/i range range<%> get-identifier-list))])
           (when (bound-identifier=? selected-syntax id)
-            (display-id-value id)
+            (display-id-value id (hash-ref values-displayed id #f))
             (for ([r (in-list (send/i range range<%> get-ranges id))])
               (restyle-range id r (highlight-style-delta "yellow") #t))))
         (add-clickbacks)))
