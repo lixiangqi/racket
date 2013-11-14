@@ -13,7 +13,10 @@
                      images/icons/control
                      images/icons/style)
          (except-in racket/list range))
-(provide make-trace-browser)
+(provide make-trace-browser
+         trace-struct)
+
+(struct trace-struct (id-stx value number inspect-stx funs vars apps))
 
 (define (make-trace-browser traces)
   (define frame (new frame%
@@ -21,16 +24,14 @@
                      [width 800]
                      [height 600]))
   (define widget (new widget% [parent frame]))
-  (send widget set-traces traces)
-  (send widget display-traces)
+  (send widget display-traces traces)
   (send frame show #t))
 
 (define widget%
   (class object%
     (init parent)
-
+    
     (field [traces empty]
-           [current-marks empty]
            [var-tables (make-hasheq)]
            [function-calls empty]
            [last-app-list empty]
@@ -93,8 +94,6 @@
                
              )))
     
-    (struct trace-struct (id-stx value number inspect-stx ccm))
-    
     (define main-panel
       (new vertical-panel% (parent parent)))
     (define split-panel
@@ -148,10 +147,8 @@
          (set! step s)
          (update-trace-view-backward)]))
     
-    (define/public (set-traces trace) 
-      (set! traces (map (lambda (t) (trace-struct (first t) (second t) (third t) (fourth t) (fifth t))) trace)))
-    
-    (define/public (display-traces)
+    (define/public (display-traces t)
+      (set! traces t)
       (let ([logs (map (lambda (t) (format "~a: ~v\n" (syntax->datum (trace-struct-id-stx t)) (trace-struct-value t))) traces)])
         (send log-text display-logs logs #f)))
       
@@ -209,11 +206,11 @@
         [else
          (send view-panel change-children (lambda (l) (append l (list slider-panel navigator))))
          (set! show? #t)])
-      (set! current-marks (continuation-mark-set-first (trace-struct-ccm (list-ref traces n)) 'inspect null))
-      (set! function-calls (reverse (map first current-marks)))
-      (set! var-tables (reverse (map (lambda (m) ((second m))) current-marks)))
-      (set! last-app-list (reverse (append (map third current-marks)
-                                           (list (trace-struct-inspect-stx (list-ref traces n))))))
+      (let ([current-trace (list-ref traces n)])
+        (set! function-calls (reverse (trace-struct-funs current-trace)))
+        (set! var-tables (reverse (trace-struct-vars current-trace)))
+        (set! last-app-list (reverse (append (trace-struct-apps current-trace)
+                                             (list (trace-struct-inspect-stx current-trace))))))
       (set! limit (length function-calls))
       (set! step 1)
       (send previous-button enable #t)

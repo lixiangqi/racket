@@ -1,8 +1,6 @@
 #lang racket/base
 (require racket/class
-         racket/dict
          racket/gui/base
-         racket/promise
          data/interval-map
          framework
          unstable/class-iop

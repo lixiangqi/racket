@@ -877,9 +877,15 @@
                    (free-identifier=? var (caar bindings))) (cdar bindings)]
               [else (loop (rest bindings))])))
         
-        (define/public (update-logs id-stx val num inspect-stx ccm)
+        (define/public (update-logs id val num inspect ccm)
           (send (send (get-frame) get-trace-button) enable #t)
-          (set! traces (append traces (list (list id-stx val num inspect-stx ccm)))))
+          (let* ([marks (continuation-mark-set-first ccm 'inspect null)]
+                 [functions (map first marks)]
+                 [var-tables (map (lambda (m) ((second m))) marks)]
+                 [last-apps (map third marks)])
+            (set! traces (append traces
+                                 (list (trace-struct id val num inspect
+                                                     functions var-tables last-apps))))))
         
         (define/public (move-to-frame the-frame-num)
           (set-box! frame-num the-frame-num)
