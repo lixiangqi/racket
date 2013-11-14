@@ -28,17 +28,11 @@
 
 ;; Interfaces
 
-;; displays-manager<%>
-(define-interface displays-manager<%> ()
-  (;; add-syntax-display : display<%> -> void
-   add-syntax-display
-
-   ;; remove-all-syntax-displays : -> void
-   remove-all-syntax-displays))
-
 ;; selection-manager<%>
 (define-interface selection-manager<%> ()
-  (;; selected-syntax : notify-box of syntax/#f
+  (set-syntax-display
+   
+   ;; selected-syntax : notify-box of syntax/#f
    (methods:notify selected-syntax)))
 
 ;; mark-manager<%>
@@ -51,8 +45,7 @@
    reset-primary-partition))
 
 ;; controller<%>
-(define-interface controller<%> (displays-manager<%>
-                                 selection-manager<%>
+(define-interface controller<%> (selection-manager<%>
                                  mark-manager<%>)
   ())
 

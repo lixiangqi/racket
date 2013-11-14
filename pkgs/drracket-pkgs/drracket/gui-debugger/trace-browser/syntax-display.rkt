@@ -8,16 +8,17 @@
          unstable/class-iop
          "pretty-printer.rkt"
          "interface.rkt"
-         "util.rkt")
+         "util.rkt"
+         "controller.rkt")
 (provide print-syntax-to-editor)
 
 (define-syntax-rule (uninterruptible e ...)
   (parameterize-break #f (begin e ...)))
 
-;; print-syntax-to-editor : syntax text controller<%> number number
+;; print-syntax-to-editor : syntax text number number
 ;;                       -> display<%>
 ;; Note: must call display<%>::refresh to finish styling.
-(define (print-syntax-to-editor stx text controller columns
+(define (print-syntax-to-editor stx text columns
                                 [insertion-point (send text last-position)])
   (define output-port (open-output-string/count-lines))
   (define range (pretty-print-syntax stx 
@@ -30,7 +31,6 @@
      (send text insert output-length output-string insertion-point))
     (new display%
          (text text)
-         (controller controller)
          (range range)
          (start-position insertion-point)
          (end-position (+ insertion-point output-length)))))
@@ -39,11 +39,12 @@
 ;; Note: must call refresh method to finish styling.
 (define display%
   (class* object% (display<%>)
-    (init-field/i [controller controller<%>]
-                  [range range<%>])
+    (init-field/i [range range<%>])
     (init-field text
                 start-position
                 end-position)
+    
+    (define controller (new controller%))
 
     (define base-style
       (send (send text get-style-list) find-named-style (editor:get-default-color-style-name)))
@@ -168,7 +169,7 @@
 
     ;; Initialize
     (super-new)
-    (send/i controller controller<%> add-syntax-display this)
+    (send/i controller controller<%> set-syntax-display this)
     (initialize)))
 
 (define (open-output-string/count-lines)

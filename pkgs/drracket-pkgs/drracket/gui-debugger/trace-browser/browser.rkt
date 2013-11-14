@@ -5,7 +5,6 @@
          unstable/class-iop
          unstable/gui/notify
          "interface.rkt"
-         "controller.rkt"
          "syntax-display.rkt"
          "text.rkt"
          "util.rkt" 
@@ -30,8 +29,7 @@
   (class object%
     (init parent)
 
-    (field [controller (new controller%)]
-           [traces empty]
+    (field [traces empty]
            [current-marks empty]
            [var-tables (make-hasheq)]
            [function-calls empty]
@@ -169,13 +167,12 @@
       (with-unlock view-text
         (let ([stx (list-ref function-calls i)]
               [hi-stxs (if (= (add1 i) limit) null (list (list-ref last-app-list i)))])
-          (define display (print-syntax-to-editor stx view-text controller
+          (define display (print-syntax-to-editor stx view-text
                                                   (calculate-columns)
                                                   (send view-text last-position)))
           (send view-text insert "\n")
           (define range (send/i display display<%> get-range))
           (define offset (send/i display display<%> get-start-position))
-          (send/i controller selection-manager<%> set-selected-syntax (new notify-box% (value #f)))
           (send/i display display<%> highlight-syntaxes hi-stxs highlight-color)
           (send display refresh))))
     
@@ -194,8 +191,7 @@
 
     (define/public (erase-all)
       (with-unlock view-text
-        (send view-text erase))
-      (send/i controller displays-manager<%> remove-all-syntax-displays))
+        (send view-text erase)))
     
     (define/public (get-text) view-text)
     
