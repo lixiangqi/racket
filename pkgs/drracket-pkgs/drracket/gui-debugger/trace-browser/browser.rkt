@@ -170,7 +170,9 @@
           (send view-text insert "\n")
           (define range (send/i display display<%> get-range))
           (define offset (send/i display display<%> get-start-position))
-          (send/i display display<%> highlight-syntaxes hi-stxs highlight-color)
+          (if (zero? i)
+              (send/i display display<%> highlight-syntaxes hi-stxs "MistyRose")
+              (send/i display display<%> highlight-syntaxes hi-stxs highlight-color))
           (send display refresh))))
     
     (define/private (code-style text)
@@ -185,6 +187,11 @@
             [w-box (box 0.0)])
         (send admin get-view #f #f w-box #f)
         (sub1 (inexact->exact (floor (/ (unbox w-box) char-width))))))
+    
+    (define/private (add-separator)
+      (add-text "\n")
+      (add-text (make-object image-snip% (make-object bitmap% (collection-file-path "red-arrow.bmp" "icons") 'bmp)))
+      (add-text "\n\n"))
 
     (define/public (erase-all)
       (with-unlock view-text
@@ -226,14 +233,12 @@
     
     (define/private (update-trace-view)
       (erase-all)
-      (cond 
+      (cond
         [(odd? step)
          (add-syntax (sub1 step))]
         [else 
          (add-syntax (- step 2))
-         (add-text "\n")
-         (add-text (make-object image-snip% (make-object bitmap% (collection-file-path "red-arrow.bmp" "icons") 'bmp)))
-         (add-text "\n\n")
+         (add-separator)
          (add-syntax (sub1 step))])
       (send status-msg set-label (format "Trace ~a of ~a" step limit)))      
     
