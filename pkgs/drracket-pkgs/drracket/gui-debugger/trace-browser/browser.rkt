@@ -164,6 +164,7 @@
         (let ([stx (list-ref function-calls i)]
               [hi-stxs (if (= (add1 i) limit) null (list (list-ref last-app-list i)))])
           (define display (print-syntax-to-editor stx view-text
+                                                  (list-ref var-tables i)
                                                   (calculate-columns)
                                                   (send view-text last-position)))
           (send view-text insert "\n")
@@ -227,11 +228,8 @@
       (erase-all)
       (cond 
         [(odd? step)
-         (send view-text set-var-table (list-ref var-tables (sub1 step)))
          (add-syntax (sub1 step))]
         [else 
-         (send view-text set-var-table (cons (list-ref var-tables (- step 2))
-                                             (list-ref var-tables (sub1 step))))
          (add-syntax (- step 2))
          (add-text "\n")
          (add-text (make-object image-snip% (make-object bitmap% (collection-file-path "red-arrow.bmp" "icons") 'bmp)))

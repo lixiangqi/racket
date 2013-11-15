@@ -16,7 +16,7 @@
 ;; print-syntax-to-editor : syntax text number number
 ;;                       -> display<%>
 ;; Note: must call display<%>::refresh to finish styling.
-(define (print-syntax-to-editor stx text columns
+(define (print-syntax-to-editor stx text var-table columns
                                 [insertion-point (send text last-position)])
   (define output-port (open-output-string/count-lines))
   (define range (pretty-print-syntax stx 
@@ -29,6 +29,7 @@
      (send text insert output-length output-string insertion-point))
     (new display%
          (text text)
+         (var-table var-table)
          (range range)
          (start-position insertion-point)
          (end-position (+ insertion-point output-length)))))
@@ -39,6 +40,7 @@
   (class* object% (display<%>)
     (init-field/i [range range<%>])
     (init-field text
+                var-table
                 start-position
                 end-position)
     
@@ -124,7 +126,7 @@
             (restyle-range stx r delta #t)))))
     
     (define/private (display-id-value stx displayed?)
-      (let* ([id-val (send text lookup-var-table (syntax-position stx))]
+      (let* ([id-val (hash-ref var-table (syntax-position stx) (lambda () 'unfound))]
              [value (if displayed?
                         (syntax->datum stx) 
                         id-val)]
