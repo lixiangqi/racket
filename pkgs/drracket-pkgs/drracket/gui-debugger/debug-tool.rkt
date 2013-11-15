@@ -881,7 +881,7 @@
           (send (send (get-frame) get-trace-button) enable #t)
           (let* ([marks (continuation-mark-set-first ccm 'inspect null)]
                  [functions (map first marks)]
-                 [var-tables (map (lambda (m) ((second m))) marks)]
+                 [var-tables (map (lambda (m) (hash-copy ((second m)))) marks)]
                  [last-apps (map third marks)])
             (set! traces (append traces
                                  (list (trace-struct id val num inspect

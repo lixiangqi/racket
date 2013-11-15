@@ -149,6 +149,11 @@
       (when (identifier? selected-syntax)
         (for ([id (in-list (send/i range range<%> get-identifier-list))])
           (when (bound-identifier=? selected-syntax id)
+            #|
+            (printf "-----------------------\n")
+            (printf "var-table: ~a\n" var-table)
+            (printf "bound-id: ~a, pos: ~a\n" id (syntax-position id))
+|#
             (display-id-value id (hash-ref values-displayed id #f))
             (for ([r (in-list (send/i range range<%> get-ranges id))])
               (restyle-range id r (highlight-style-delta "yellow") #t))))

@@ -16,7 +16,7 @@
 (provide make-trace-browser
          trace-struct)
 
-(struct trace-struct (id-stx value number inspect-stx funs vars apps))
+(struct trace-struct (id-stx value number inspect-stx funs vars apps) #:transparent)
 
 (define (make-trace-browser traces)
   (define frame (new frame%
