@@ -53,8 +53,7 @@
                       line-paragraph
                       dc-location-to-editor-location
                       paragraph-start-position
-                      paragraph-end-position
-                      )
+                      paragraph-end-position)
              (super-new)
              
              (define var-logs empty)

@@ -883,7 +883,6 @@
                  [functions (map first marks)]
                  [var-tables (map (lambda (m) ((second m))) marks)]
                  [last-apps (map third marks)])
-            (printf "var-tables = ~a\n" var-tables)
             (set! traces (append traces
                                  (list (trace-struct id val num inspect
                                                      functions var-tables last-apps))))))
