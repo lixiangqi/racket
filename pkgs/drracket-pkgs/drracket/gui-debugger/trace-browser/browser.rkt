@@ -162,7 +162,7 @@
     (define/public (add-syntax i #:highlight-color [highlight-color "LightCyan"])
       (with-unlock view-text
         (let ([stx (list-ref function-calls i)]
-              [hi-stxs (if (= (add1 i) limit) null (list (list-ref last-app-list i)))])
+              [hi-stxs (if (> (add1 i) limit) null (list (list-ref last-app-list i)))])
           (define display (print-syntax-to-editor stx view-text
                                                   (list-ref var-tables i)
                                                   (calculate-columns)
