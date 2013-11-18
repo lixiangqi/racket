@@ -87,19 +87,17 @@
                    [(left-down)
                     (when (< paragraph (length var-logs))
                       (move-to-view paragraph)
-                      (update-view-text paragraph))])))
-                             
-               
-               
-             )))
+                      (update-view-text paragraph))]))))))
     
     (define main-panel
-      (new vertical-panel% (parent parent)))
+      (new vertical-panel% [parent parent]))
     (define split-panel
-      (new panel:horizontal-dragable% (parent main-panel)))
+      (new panel:horizontal-dragable% [parent main-panel]))
+    (define log-panel 
+      (new vertical-panel% [parent split-panel]))
     
     (define view-text (new browser-text%))
-    (new editor-canvas% [parent split-panel] [editor log-text] [style '(auto-hscroll)])
+    (new editor-canvas% [parent log-panel] [editor log-text] [style '(auto-hscroll)])
     (define view-panel (new vertical-panel% [parent split-panel]))
     (define view-canvas (new canvas:color% (parent view-panel) (editor view-text)))
     
