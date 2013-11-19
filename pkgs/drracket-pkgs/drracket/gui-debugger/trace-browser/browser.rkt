@@ -89,24 +89,40 @@
                       (move-to-view paragraph)
                       (update-view-text paragraph))]))))))
     
+    (define navigator 'uninitialized-navigator)
+    (define previous-button 'uninitialized-previous-button)
+    (define next-button 'uninitialized-next-button)
+    (define status-msg 'uninitialized-status-msg)
+    (define slider-panel 'uninitialized-slider-panel)
+    (define slider 'uninitialized-slider)    
+    
+    (define search-text
+      (new (class text%
+             (super-new))))
     (define main-panel
       (new vertical-panel% [parent parent]))
     (define split-panel
       (new panel:horizontal-dragable% [parent main-panel]))
     (define log-panel 
       (new vertical-panel% [parent split-panel]))
-    
+      
+    (send log-panel begin-container-sequence)
+    (new editor-canvas% 
+         [parent log-panel] 
+         [editor search-text]
+         [style '(hide-hscroll hide-vscroll)]
+         [vertical-inset 2]
+         [line-count 1]
+         [stretchable-height #f])
+    (new editor-canvas% 
+         [parent log-panel] 
+         [editor log-text] 
+         [style '(auto-hscroll)])
+    (send log-panel end-container-sequence)
+      
     (define view-text (new browser-text%))
-    (new editor-canvas% [parent log-panel] [editor log-text] [style '(auto-hscroll)])
     (define view-panel (new vertical-panel% [parent split-panel]))
     (define view-canvas (new canvas:color% (parent view-panel) (editor view-text)))
-    
-    (define navigator 'uninitialized-navigator)
-    (define previous-button 'uninitialized-previous-button)
-    (define next-button 'uninitialized-next-button)
-    (define status-msg 'uninitialized-status-msg)
-    (define slider-panel 'uninitialized-slider-panel)
-    (define slider 'uninitialized-slider)
     
     ;; Initialize navigator 
     (let ([navigate-previous-icon (compiled-bitmap (step-back-icon #:color run-icon-color #:height (toolbar-icon-height)))]
