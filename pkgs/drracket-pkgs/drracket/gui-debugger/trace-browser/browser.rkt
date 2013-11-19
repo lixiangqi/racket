@@ -120,7 +120,7 @@
          [line-count 1]
          [stretchable-height #f])
     (new message%
-         [label (magnifying-glass-icon #:height 20)]
+         [label (magnifying-glass-icon #:height (send (send search-text get-dc) get-char-height))]
          [parent search-panel]
          [stretchable-height #f])
     (new editor-canvas% 
