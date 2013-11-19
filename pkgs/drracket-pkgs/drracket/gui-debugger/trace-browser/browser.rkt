@@ -9,6 +9,7 @@
          "text.rkt"
          "util.rkt" 
          images/compile-time
+         images/icons/misc
          (for-syntax racket/base
                      images/icons/control
                      images/icons/style)
@@ -103,16 +104,24 @@
       (new vertical-panel% [parent parent]))
     (define split-panel
       (new panel:horizontal-dragable% [parent main-panel]))
+    
     (define log-panel 
       (new vertical-panel% [parent split-panel]))
-      
     (send log-panel begin-container-sequence)
+    (define search-panel
+      (new horizontal-panel% 
+           [parent log-panel]
+           [stretchable-height #f]))
     (new editor-canvas% 
-         [parent log-panel] 
+         [parent search-panel] 
          [editor search-text]
          [style '(hide-hscroll hide-vscroll)]
          [vertical-inset 2]
          [line-count 1]
+         [stretchable-height #f])
+    (new message%
+         [label (magnifying-glass-icon #:height 20)]
+         [parent search-panel]
          [stretchable-height #f])
     (new editor-canvas% 
          [parent log-panel] 
