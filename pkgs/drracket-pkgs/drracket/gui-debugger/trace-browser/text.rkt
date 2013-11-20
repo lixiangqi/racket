@@ -5,9 +5,7 @@
          framework
          data/interval-map)
 
-(provide text:region-data-mixin
-         text:clickregion-mixin
-         browser-text%)
+(provide browser-text%)
 
 (define text:region-data-mixin
   (mixin (text:basic<%>) ()

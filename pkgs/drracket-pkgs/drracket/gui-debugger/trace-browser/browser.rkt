@@ -93,16 +93,17 @@
                       (move-to-view paragraph)
                       (update-view-text paragraph))]))))))
     
+    (define search-text
+      (new (class text%
+             (super-new))))
+    
     (define navigator 'uninitialized-navigator)
     (define previous-button 'uninitialized-previous-button)
     (define next-button 'uninitialized-next-button)
     (define status-msg 'uninitialized-status-msg)
     (define slider-panel 'uninitialized-slider-panel)
-    (define slider 'uninitialized-slider)    
+    (define slider 'uninitialized-slider)   
     
-    (define search-text
-      (new (class text%
-             (super-new))))
     (define main-panel
       (new vertical-panel% [parent parent]))
     (define split-panel
