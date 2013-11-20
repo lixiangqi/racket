@@ -86,6 +86,9 @@
                              [(paragraph) (line-paragraph line)])
                  (case (send evt get-event-type)
                    [(left-down)
+                    ;; for-each var-logs regexp-match
+                    (printf "regex = ~a\n" (regexp-match #rx"x" (first var-logs)))
+                    
                     (when (< paragraph (length var-logs))
                       (move-to-view paragraph)
                       (update-view-text paragraph))]))))))
