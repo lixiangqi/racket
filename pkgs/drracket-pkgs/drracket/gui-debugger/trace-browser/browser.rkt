@@ -114,6 +114,7 @@
     (define search-panel
       (new horizontal-panel% 
            [parent log-panel]
+           [style '(border)]
            [stretchable-height #f]))
     (new editor-canvas% 
          [parent search-panel] 
