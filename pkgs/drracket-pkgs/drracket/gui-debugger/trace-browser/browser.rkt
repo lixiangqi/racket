@@ -95,7 +95,23 @@
     
     (define search-text
       (new (class text%
-             (super-new))))
+             
+             (inherit get-text)
+             
+             (super-new)
+             
+             (define/augment (after-insert start len)
+               (update-str-to-search)
+               (inner (void) after-insert start len))
+             (define/augment (after-delete start len)
+               (update-str-to-search)
+               (inner (void) after-delete start len))
+             
+             (define/private (update-str-to-search)
+               (printf "search: ~a\n" (get-text)))
+             
+             
+             )))
     
     (define navigator 'uninitialized-navigator)
     (define previous-button 'uninitialized-previous-button)
