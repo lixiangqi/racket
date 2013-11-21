@@ -54,7 +54,9 @@
                       line-paragraph
                       dc-location-to-editor-location
                       paragraph-start-position
-                      paragraph-end-position)
+                      paragraph-end-position
+                      find-string-all
+                      position-line)
              (super-new)
              
              (define var-logs empty)
@@ -80,6 +82,16 @@
                (set! mark-num num)
                (display-logs var-logs #t))
              
+             (define/public (filter-logs search-str)
+               (let* ([found (find-string-all search-str 'backward)]
+                      [lines (map (lambda (p) (position-line p)) found)])
+                 (display-logs 
+                 
+                 
+                 (printf "lines = ~a\n" lines)))
+                 
+               
+             
              (define/override (on-event evt)
                (let*-values ([(x y) (dc-location-to-editor-location (send evt get-x) (send evt get-y))]
                              [(line) (find-line y)]
@@ -97,6 +109,8 @@
              
              (super-new)
              
+             (define bold-sd (make-object style-delta% 'change-weight 'bold))
+             
              (define/augment (after-insert start len)
                (update-str-to-search)
                (inner (void) after-insert start len))
@@ -105,10 +119,8 @@
                (inner (void) after-delete start len))
              
              (define/private (update-str-to-search)
-               (let* ([str (get-text)]
-                      [found (send log-text find-string-all str 'backward)])
-                 (for ([i (in-list found)])
-                   (printf "found = ~a\n" (send log-text line-paragraph i)))))
+               (send log-text filter-logs (get-text)))
+               
              
              )))
     
