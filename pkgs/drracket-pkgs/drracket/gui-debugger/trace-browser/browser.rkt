@@ -108,10 +108,15 @@
                           (let* ([offset (list-ref offsets i)]
                                  [start-pos (+ (line-start-position counter) offset)]
                                  [end-pos (+ start-pos str-length)])
-                            (change-style bold-sd start-pos end-pos))
+                            (change-style (search-style-delta "SeaGreen") start-pos end-pos))
                           (set! last line))))
                     (lock #t)
                     (end-edit-sequence)])))
+             
+             (define/private (search-style-delta color)
+               (let ([sd (new style-delta%)])
+                 (send sd set-delta-foreground color)
+                 sd))
              
              (define/override (on-event evt)
                (let*-values ([(x y) (dc-location-to-editor-location (send evt get-x) (send evt get-y))]
