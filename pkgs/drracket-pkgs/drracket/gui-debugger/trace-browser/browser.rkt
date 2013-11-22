@@ -56,7 +56,8 @@
                       paragraph-start-position
                       paragraph-end-position
                       find-string-all
-                      position-line)
+                      position-line
+                      line-start-position)
              (super-new)
              
              (define var-logs empty)
@@ -86,11 +87,30 @@
              
              (define/public (filter-logs search-str)
                (let* ([found (find-string-all search-str 'forward 0 (last-position))]
-                      [lines (map (lambda (p) (position-line p)) found)])
-                 ;(display-logs 
-                 
-                 
-                 (printf "lines = ~a\n" lines)))
+                      [lines (map (lambda (p) (position-line p)) found)]
+                      [offsets (map (lambda (p l) (- p (line-start-position l))) found lines)]
+                      [str-length (string-length search-str)]
+                      [last -1]
+                      [counter -1])
+                 (cond
+                   [(eq? search-str "")
+                    (display-logs #f)]
+                   [else
+                    (begin-edit-sequence)
+                    (lock #f)
+                    (delete 0 (last-position))
+                    (for ([i (in-range (length found))])
+                      (let ([line (list-ref lines i)])
+                        (unless (= line last)
+                          (insert (list-ref var-logs line))
+                          (set! counter (add1 counter))
+                          (let* ([offset (list-ref offsets i)]
+                                 [start-pos (+ (line-start-position counter) offset)]
+                                 [end-pos (+ start-pos str-length)])
+                            (change-style bold-sd start-pos end-pos))
+                          (set! last line))))
+                    (lock #t)
+                    (end-edit-sequence)])))
                  
                
              
