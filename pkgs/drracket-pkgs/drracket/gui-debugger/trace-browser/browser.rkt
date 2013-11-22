@@ -64,12 +64,14 @@
              (define bold-sd (make-object style-delta% 'change-weight 'bold))
              (define normal-sd (make-object style-delta% 'change-weight 'normal))
              
-             (define/public (display-logs logs mark?)
+             (define/public (set-var-logs l)
+               (set! var-logs l))
+             
+             (define/public (display-logs mark?)
                (begin-edit-sequence)
                (lock #f)
-               (set! var-logs logs)
                (delete 0 (last-position))
-               (for-each (lambda (l) (insert l)) logs)
+               (for-each (lambda (l) (insert l)) var-logs)
                (when mark?
                  (change-style normal-sd 0 (last-position))
                  (change-style bold-sd 
@@ -80,12 +82,12 @@
              
              (define/private (move-to-view num)
                (set! mark-num num)
-               (display-logs var-logs #t))
+               (display-logs #t))
              
              (define/public (filter-logs search-str)
-               (let* ([found (find-string-all search-str 'backward)]
+               (let* ([found (find-string-all search-str 'forward 0 (last-position))]
                       [lines (map (lambda (p) (position-line p)) found)])
-                 (display-logs 
+                 ;(display-logs 
                  
                  
                  (printf "lines = ~a\n" lines)))
@@ -204,7 +206,8 @@
     (define/public (display-traces t)
       (set! traces t)
       (let ([logs (map (lambda (t) (format "~a: ~v\n" (syntax->datum (trace-struct-id-stx t)) (trace-struct-value t))) traces)])
-        (send log-text display-logs logs #f)))
+        (send log-text set-var-logs logs)
+        (send log-text display-logs #f)))
       
              
     (send view-text set-styles-sticky #f)
