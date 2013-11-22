@@ -143,6 +143,7 @@
                (inner (void) after-delete start len))
              
              (define/private (update-str-to-search)
+               (send log-text display-logs)
                (send log-text filter-logs (get-text))))))
     
     (define navigator 'uninitialized-navigator)
