@@ -68,22 +68,23 @@
              (define/public (set-var-logs l)
                (set! var-logs l))
              
-             (define/public (display-logs mark?)
+             (define/public (display-logs)
                (begin-edit-sequence)
                (lock #f)
                (delete 0 (last-position))
                (for-each (lambda (l) (insert l)) var-logs)
-               (when mark?
-                 (change-style normal-sd 0 (last-position))
-                 (change-style bold-sd 
-                               (paragraph-start-position mark-num)
-                               (paragraph-end-position mark-num)))
                (lock #t)
                (end-edit-sequence))
              
              (define/private (move-to-view num)
                (set! mark-num num)
-               (display-logs #t))
+               (begin-edit-sequence)
+               (lock #f)
+               (change-style normal-sd 0 (last-position))
+               (change-style bold-sd (paragraph-start-position mark-num)
+                                     (paragraph-end-position mark-num))
+               (lock #t)
+               (end-edit-sequence))
              
              (define/public (filter-logs search-str)
                (let* ([found (find-string-all search-str 'forward 0 (last-position))]
@@ -94,7 +95,7 @@
                       [counter -1])
                  (cond
                    [(eq? search-str "")
-                    (display-logs #f)]
+                    (display-logs)]
                    [else
                     (begin-edit-sequence)
                     (lock #f)
@@ -111,8 +112,6 @@
                           (set! last line))))
                     (lock #t)
                     (end-edit-sequence)])))
-                 
-               
              
              (define/override (on-event evt)
                (let*-values ([(x y) (dc-location-to-editor-location (send evt get-x) (send evt get-y))]
@@ -126,11 +125,9 @@
     
     (define search-text
       (new (class text%
-             
              (inherit get-text)
              
              (super-new)
-             
              (define bold-sd (make-object style-delta% 'change-weight 'bold))
              
              (define/augment (after-insert start len)
@@ -141,10 +138,7 @@
                (inner (void) after-delete start len))
              
              (define/private (update-str-to-search)
-               (send log-text filter-logs (get-text)))
-               
-             
-             )))
+               (send log-text filter-logs (get-text))))))
     
     (define navigator 'uninitialized-navigator)
     (define previous-button 'uninitialized-previous-button)
@@ -227,7 +221,7 @@
       (set! traces t)
       (let ([logs (map (lambda (t) (format "~a: ~v\n" (syntax->datum (trace-struct-id-stx t)) (trace-struct-value t))) traces)])
         (send log-text set-var-logs logs)
-        (send log-text display-logs #f)))
+        (send log-text display-logs)))
       
              
     (send view-text set-styles-sticky #f)
