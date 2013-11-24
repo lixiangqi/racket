@@ -3,7 +3,6 @@
          racket/gui/base
          framework
          unstable/class-iop
-         unstable/gui/notify
          "interface.rkt"
          "syntax-display.rkt"
          "text.rkt"
