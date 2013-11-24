@@ -59,7 +59,8 @@
                       line-start-position)
              (super-new)
              
-             (define var-logs empty)
+             (define var-logs null)
+             (define filter-lines null)
              (define mark-num 0)
              (define bold-sd (make-object style-delta% 'change-weight 'bold))
              (define normal-sd (make-object style-delta% 'change-weight 'normal))
@@ -86,16 +87,18 @@
                (end-edit-sequence))
              
              (define/public (filter-logs search-str)
-               (let* ([found (find-string-all search-str 'forward 0 (last-position))]
-                      [lines (map (lambda (p) (position-line p)) found)]
-                      [offsets (map (lambda (p l) (- p (line-start-position l))) found lines)]
-                      [str-length (string-length search-str)]
-                      [last -1]
-                      [counter -1])
-                 (cond
-                   [(eq? search-str "")
-                    (display-logs)]
-                   [else
+               (cond
+                 [(eq? search-str "")
+                  (set! filter-lines null)
+                  (display-logs)]
+                 [else
+                  (let* ([found (find-string-all search-str 'forward 0 (last-position))]
+                         [lines (map (lambda (p) (position-line p)) found)]
+                         [offsets (map (lambda (p l) (- p (line-start-position l))) found lines)]
+                         [str-length (string-length search-str)]
+                         [last -1]
+                         [counter -1])
+                    (set! filter-lines (remove-duplicates lines))  
                     (begin-edit-sequence)
                     (lock #f)
                     (delete 0 (last-position))
@@ -110,7 +113,9 @@
                             (change-style (search-style-delta "SeaGreen") start-pos end-pos))
                           (set! last line))))
                     (lock #t)
-                    (end-edit-sequence)])))
+                    (end-edit-sequence))])
+                 (erase-all)
+                 (initialize-view-text))
              
              (define/private (search-style-delta color)
                (let ([sd (new style-delta%)])
@@ -125,7 +130,9 @@
                    [(left-down)
                     (when (< paragraph (length var-logs))
                       (move-to-view paragraph)
-                      (update-view-text paragraph))]))))))
+                      (if (null? filter-lines)
+                          (update-view-text paragraph)
+                          (update-view-text (list-ref filter-lines paragraph))))]))))))
     
     (define search-text
       (new (class text%
