@@ -157,7 +157,7 @@
     (define next-button 'uninitialized-next-button)
     (define status-msg 'uninitialized-status-msg)
     (define slider-panel 'uninitialized-slider-panel)
-    (define slider 'uninitialized-slider)   
+    (define slider #f)   
     
     (define main-panel
       (new vertical-panel% [parent parent]))
@@ -289,14 +289,24 @@
           (send sd set-delta-foreground "gray")
           (send view-text insert "No trace selected\n")
           (send view-text change-style sd (send view-text paragraph-start-position 0) 
-                                          (send view-text paragraph-end-position 0)))))
+                                          (send view-text paragraph-end-position 0))))
+      (when slider
+        (send slider-panel delete-child slider))
+      (send view-panel change-children (lambda (l) (remove* (list slider-panel navigator) l eq?))))
     
     (define/private (update-view-text n)
-      (cond 
-        [show? (send slider-panel delete-child slider)]
-        [else
-         (send view-panel change-children (lambda (l) (append l (list slider-panel navigator))))
-         (set! show? #t)])
+      (printf "slider = ~a\n" slider)
+      (if slider
+          (send slider-panel delete-child slider)
+          (send view-panel change-children (lambda (l) (append l (list slider-panel navigator)))))
+                
+      
+;      (printf "show? = ~a\n" show?)
+;      (cond 
+;        [show? (send slider-panel delete-child slider)]
+;        [else
+;         (send view-panel change-children (lambda (l) (append l (list slider-panel navigator))))
+;         (set! show? #t)])
       (let ([current-trace (list-ref traces n)])
         (set! function-calls (reverse (trace-struct-funs current-trace)))
         (set! var-tables (reverse (trace-struct-vars current-trace)))
@@ -338,8 +348,7 @@
     
     ;; Initialize
     (super-new)
-    (initialize-view-text)
     (send split-panel begin-container-sequence)
     (send split-panel set-percentages (list 1/3 2/3))
-    (send view-panel change-children (lambda (l) (remove* (list slider-panel navigator) l eq?)))
+    (initialize-view-text)
     (send split-panel end-container-sequence)))
