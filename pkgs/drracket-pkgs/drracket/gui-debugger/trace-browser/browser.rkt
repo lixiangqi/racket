@@ -36,8 +36,7 @@
            [function-calls empty]
            [last-app-list empty]
            [step 1]
-           [limit 0]
-           [show? #f])
+           [limit 0])
     
     (define log-text
       (new (class text%
@@ -292,21 +291,13 @@
                                           (send view-text paragraph-end-position 0))))
       (when slider
         (send slider-panel delete-child slider))
+      (set! slider #f)
       (send view-panel change-children (lambda (l) (remove* (list slider-panel navigator) l eq?))))
     
     (define/private (update-view-text n)
-      (printf "slider = ~a\n" slider)
       (if slider
           (send slider-panel delete-child slider)
           (send view-panel change-children (lambda (l) (append l (list slider-panel navigator)))))
-                
-      
-;      (printf "show? = ~a\n" show?)
-;      (cond 
-;        [show? (send slider-panel delete-child slider)]
-;        [else
-;         (send view-panel change-children (lambda (l) (append l (list slider-panel navigator))))
-;         (set! show? #t)])
       (let ([current-trace (list-ref traces n)])
         (set! function-calls (reverse (trace-struct-funs current-trace)))
         (set! var-tables (reverse (trace-struct-vars current-trace)))
