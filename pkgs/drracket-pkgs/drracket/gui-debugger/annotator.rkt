@@ -326,7 +326,7 @@
                                              (syntax-position (quote-syntax lambda-clause)) 
                                              (lambda () (quote-syntax lambda-clause)))])
                      (unless (empty? '#,arg-pos-info)
-                       (for-each (lambda (pos val) (hash-ref! var-table pos (val))) '#,arg-pos-info (list #,@debug-info-stx)))
+                       (for-each (lambda (pos val) (hash-ref! var-table pos val)) '#,arg-pos-info (list #,@debug-info-stx)))
                      (with-continuation-mark 'inspect (append captured (list (list function-stx
                                                                                    (#%plain-lambda () var-table)
                                                                                    (continuation-mark-set-first #f 'app null))))  
