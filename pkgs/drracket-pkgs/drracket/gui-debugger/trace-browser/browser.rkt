@@ -127,12 +127,14 @@
                              [(paragraph) (line-paragraph line)])
                  (case (send evt get-event-type)
                    [(left-down)
-                    (when (< paragraph (length var-logs))
-                      (move-to-view paragraph)
-                      (if (null? filter-lines)
-                          (update-view-text paragraph)
+                    (if (null? filter-lines)
+                        (when (< paragraph (length var-logs))
+                          (move-to-view paragraph)
+                          (update-view-text paragraph))
+                        (when (< paragraph (length filter-lines))
+                          (move-to-view paragraph)
                           (update-view-text (list-ref filter-lines paragraph))))]))))))
-    
+                 
     (define search-text
       (new (class text%
              (inherit get-text)
