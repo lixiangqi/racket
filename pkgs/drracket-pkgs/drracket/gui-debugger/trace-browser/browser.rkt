@@ -137,9 +137,12 @@
                  
     (define search-text
       (new (class text%
-             (inherit get-text)
+             (inherit get-text
+                      refresh
+                      get-dc)
              
              (super-new)
+             (define red? #f)
              (define bold-sd (make-object style-delta% 'change-weight 'bold))
              
              (define/augment (after-insert start len)
