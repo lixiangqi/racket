@@ -302,21 +302,22 @@
           (send view-panel change-children (lambda (l) (append l (list slider-panel navigator)))))
       (let ([current-trace (list-ref traces n)])
         (set! function-calls (reverse (trace-struct-funs current-trace)))
-        (set! var-tables (reverse (trace-struct-vars current-trace)))
-        (set! last-app-list (reverse (append (trace-struct-apps current-trace)
-                                             (list (trace-struct-inspect-stx current-trace))))))
-      (set! limit (length function-calls))
-      (set! step 1)
-      (send previous-button enable #t)
-      (send next-button enable #t)
-      (set! slider (new slider% 
-                        [label #f] 
-                        [min-value 1] 
-                        [max-value limit] 
-                        [parent slider-panel] 
-                        [style (list 'horizontal 'plain)]
-                        [callback (lambda (b e) (set-current-step (send slider get-value)))]))
-      (update-trace-view-forward))
+        (unless (null? function-calls)
+          (set! var-tables (reverse (trace-struct-vars current-trace)))
+          (set! last-app-list (reverse (append (trace-struct-apps current-trace)
+                                               (list (trace-struct-inspect-stx current-trace)))))
+          (set! limit (length function-calls))
+          (set! step 1)
+          (send previous-button enable #t)
+          (send next-button enable #t)
+          (set! slider (new slider% 
+                            [label #f] 
+                            [min-value 1] 
+                            [max-value limit] 
+                            [parent slider-panel] 
+                            [style (list 'horizontal 'plain)]
+                            [callback (lambda (b e) (set-current-step (send slider get-value)))]))
+          (update-trace-view-forward))))
     
     (define/private (update-trace-view)
       (erase-all)
