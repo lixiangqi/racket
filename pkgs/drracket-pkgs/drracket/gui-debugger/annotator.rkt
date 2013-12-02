@@ -327,15 +327,16 @@
                          [function-stx (hash-ref #,stx-table 
                                              (syntax-position (quote-syntax lambda-clause)) 
                                              (lambda () (quote-syntax lambda-clause)))])
-;                     (when record-function-traces?
-;                       (set! function-traces (append function-traces 
                      (unless (empty? '#,arg-pos-info)
                        (for-each (lambda (pos val) (hash-ref! var-table pos val)) '#,arg-pos-info (list #,@debug-info-stx)))
-                     (with-continuation-mark 'inspect (append captured (list (list function-stx
-                                                                                   (#%plain-lambda () var-table)
-                                                                                   (continuation-mark-set-first #f 'app null))))  
-                       (begin
-                         #,@new-bodies)))))))]))
+                     (let ([trace (list function-stx (#%plain-lambda () var-table) (continuation-mark-set-first #f 'app null))])
+                       (if record-function-traces?
+                           (begin
+                             (set! function-traces (append function-traces (list trace)))
+                             #,@new-bodies)
+                           (with-continuation-mark 'inspect (append captured (list trace))
+                             (begin
+                               #,@new-bodies)))))))))]))
 
         (define annotated
           (rearm
@@ -421,9 +422,9 @@
                                                     (syntax-position #'exprs)
                                                     (lambda () #'exprs))])
                             (with-continuation-mark 'app orig-exp (#%plain-app . #,subexprs))))]
-                       [(eq? (car stx-property) 'app)
+                       [(eq? (first stx-property) 'app)
                         (with-syntax ([var (third (syntax->list expr))]
-                                      [num (cdr stx-property)])
+                                      [num (second stx-property)])
                           (quasisyntax/loc expr
                             (begin
                               (set! record-function-traces? #t)
@@ -437,7 +438,7 @@
                                                         function-traces))))]
                        [else
                         (with-syntax ([var (third (syntax->list expr))]
-                                      [num (cdr stx-property)])
+                                      [num (second stx-property)])
                           (quasisyntax/loc expr
                             (begin
                               (#%plain-app . #,subexprs)
@@ -446,7 +447,8 @@
                                                         num
                                                         (hash-ref #,stx-table (syntax-position #'exprs) #f) 
                                                         (current-continuation-marks)
-                                                        #f))))])])
+                                                        #f)
+                               )))])])
                (if (or is-tail? (not (syntax-source expr)))
                    result-stx
                    (wcm-wrap (make-debug-info module-name expr bound-vars bound-vars 'normal #f (previous-bindings bound-vars))
