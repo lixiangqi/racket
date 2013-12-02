@@ -177,6 +177,8 @@
                                           #'mb
                                           #`(plain-module-begin
                                              (#%require (only racket/base))
+                                             (define function-traces null)
+                                             (define record-function-traces? #f)
                                              #,@(map (lambda (e) (module-level-expr-iterator
                                                                   e (list (syntax-e #'identifier)
                                                                           (syntax-source #'identifier))))
@@ -325,6 +327,8 @@
                          [function-stx (hash-ref #,stx-table 
                                              (syntax-position (quote-syntax lambda-clause)) 
                                              (lambda () (quote-syntax lambda-clause)))])
+;                     (when record-function-traces?
+;                       (set! function-traces (append function-traces 
                      (unless (empty? '#,arg-pos-info)
                        (for-each (lambda (pos val) (hash-ref! var-table pos val)) '#,arg-pos-info (list #,@debug-info-stx)))
                      (with-continuation-mark 'inspect (append captured (list (list function-stx
@@ -409,20 +413,40 @@
                                     (annotate exp bound-vars #f module-name lambda?))
                                   (syntax->list #'exprs))]
                     [stx-property (syntax-property expr 'inspect)]
-                    [result-stx (if stx-property
-                                    (with-syntax ([var (third (syntax->list expr))]
-                                                  [num stx-property])
-                                      (quasisyntax/loc expr
-                                        (begin
-                                          (#%plain-app . #,subexprs)
-                                          (#%plain-app #,record-log #'var var num 
-                                                                    (hash-ref #,stx-table (syntax-position #'exprs) #f) 
-                                                                    (current-continuation-marks)))))
-                                    (quasisyntax/loc expr
-                                      (let ([orig-exp (hash-ref #,stx-table
-                                                               (syntax-position #'exprs)
-                                                               (lambda () #'exprs))])
-                                        (with-continuation-mark 'app orig-exp (#%plain-app . #,subexprs)))))])
+                    [result-stx
+                     (cond
+                       [(not stx-property)
+                        (quasisyntax/loc expr
+                          (let ([orig-exp (hash-ref #,stx-table
+                                                    (syntax-position #'exprs)
+                                                    (lambda () #'exprs))])
+                            (with-continuation-mark 'app orig-exp (#%plain-app . #,subexprs))))]
+                       [(eq? (car stx-property) 'app)
+                        (with-syntax ([var (third (syntax->list expr))]
+                                      [num (cdr stx-property)])
+                          (quasisyntax/loc expr
+                            (begin
+                              (set! record-function-traces? #t)
+                              (set! function-traces null)
+                              (#%plain-app . #,subexprs)
+                              (#%plain-app #,record-log (hash-ref #,stx-table (syntax-position #'var) #'var)
+                                                        var
+                                                        num
+                                                        #f
+                                                        #f
+                                                        function-traces))))]
+                       [else
+                        (with-syntax ([var (third (syntax->list expr))]
+                                      [num (cdr stx-property)])
+                          (quasisyntax/loc expr
+                            (begin
+                              (#%plain-app . #,subexprs)
+                              (#%plain-app #,record-log #'var
+                                                        var
+                                                        num
+                                                        (hash-ref #,stx-table (syntax-position #'exprs) #f) 
+                                                        (current-continuation-marks)
+                                                        #f))))])])
                (if (or is-tail? (not (syntax-source expr)))
                    result-stx
                    (wcm-wrap (make-debug-info module-name expr bound-vars bound-vars 'normal #f (previous-bindings bound-vars))

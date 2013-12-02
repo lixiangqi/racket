@@ -685,13 +685,14 @@
                                       add-top-level-binding var rd/wr))]
                              [else (void)]))
                          ; record-log
-                         (lambda (id val num inspect-stx ccm)
+                         (lambda ([exp #f] [val #f] [num #f]
+                                  [inspect-stx #f] [ccm #f] [fun-traces #f])
                            (cond
-                             [(filename->defs (robust-syntax-source id))
+                             [(filename->defs (robust-syntax-source exp))
                               =>
                               (lambda (defs)
                                 (send (send defs get-tab)
-                                      update-logs id val num inspect-stx ccm))]
+                                      update-logs exp val num inspect-stx ccm fun-traces))]
                              [else (void)]))
                          (get-pos-table)
                          source))
@@ -877,14 +878,15 @@
                    (free-identifier=? var (caar bindings))) (cdar bindings)]
               [else (loop (rest bindings))])))
         
-        (define/public (update-logs id val num inspect ccm)
+        (define/public (update-logs [exp #f] [val #f] [num #f]
+                                    [inspect-stx #f] [ccm #f] [fun-traces #f])
           (send (send (get-frame) get-trace-button) enable #t)
           (let* ([marks (continuation-mark-set-first ccm 'inspect null)]
                  [functions (map first marks)]
                  [var-tables (map (lambda (m) (hash-copy ((second m)))) marks)]
                  [last-apps (map third marks)])
             (set! traces (append traces
-                                 (list (trace-struct id val num inspect
+                                 (list (trace-struct exp val num inspect-stx
                                                      functions var-tables last-apps))))))
         
         (define/public (move-to-frame the-frame-num)
