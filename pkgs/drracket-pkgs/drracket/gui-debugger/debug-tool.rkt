@@ -881,13 +881,22 @@
         (define/public (update-logs [exp #f] [val #f] [num #f]
                                     [inspect-stx #f] [ccm #f] [fun-traces #f])
           (send (send (get-frame) get-trace-button) enable #t)
-          (let* ([marks (continuation-mark-set-first ccm 'inspect null)]
-                 [functions (map first marks)]
-                 [var-tables (map (lambda (m) (hash-copy ((second m)))) marks)]
-                 [last-apps (map third marks)])
-            (set! traces (append traces
-                                 (list (trace-struct exp val num inspect-stx
-                                                     functions var-tables last-apps))))))
+          (cond
+            [(inspect-stx)
+             (let* ([marks (continuation-mark-set-first ccm 'inspect null)]
+                    [functions (map first marks)]
+                    [var-tables (map (lambda (m) (hash-copy ((second m)))) marks)]
+                    [last-apps (map third marks)])
+               (set! traces (append traces
+                                    (list (trace-struct exp val num inspect-stx
+                                                        functions var-tables last-apps)))))]
+            [else
+             (let ([functions (map first fun-traces)]
+                   [var-tables (map second fun-traces)]
+                   [last-apps (map third fun-traces)])
+               (set! traces (append traces 
+                                    (list (trace-struct exp val num #f functions 
+                                                        var-tables last-apps)))))]))
         
         (define/public (move-to-frame the-frame-num)
           (set-box! frame-num the-frame-num)

@@ -16,7 +16,7 @@
 (provide make-trace-browser
          trace-struct)
 
-(struct trace-struct (id-stx value number inspect-stx funs vars apps) #:transparent)
+(struct trace-struct (exp-stx value number inspect-stx funs vars apps) #:transparent)
 
 (define (make-trace-browser traces)
   (define frame (new frame%
@@ -232,7 +232,7 @@
     
     (define/public (display-traces t)
       (set! traces t)
-      (let ([logs (map (lambda (t) (format "~a: ~v\n" (syntax->datum (trace-struct-id-stx t)) (trace-struct-value t))) traces)])
+      (let ([logs (map (lambda (t) (format "~a: ~v\n" (syntax->datum (trace-struct-exp-stx t)) (trace-struct-value t))) traces)])
         (send log-text set-var-logs logs)
         (send log-text display-logs)))
       
