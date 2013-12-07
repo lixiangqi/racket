@@ -423,15 +423,14 @@
                                                     (lambda () #'exprs))])
                             (with-continuation-mark 'app orig-exp (#%plain-app . #,subexprs))))]
                        [(eq? (first stx-property) 'app)
-                        (with-syntax ([var (third (syntax->list expr))]
+                        (with-syntax ([call (third (syntax->list expr))]
                                       [num (second stx-property)])
                           (quasisyntax/loc expr
                             (begin
                               (set! record-function-traces? #t)
                               (set! function-traces null)
-                              (#%plain-app . #,subexprs)
-                              (#%plain-app #,record-log (hash-ref #,stx-table (syntax-position #'var) #'var)
-                                                        var
+                              (#%plain-app #,record-log (hash-ref #,stx-table (syntax-position #'call) #'call)
+                                                        call
                                                         num
                                                         #f
                                                         #f
@@ -447,8 +446,7 @@
                                                         num
                                                         (hash-ref #,stx-table (syntax-position #'exprs) #f) 
                                                         (current-continuation-marks)
-                                                        #f)
-                               )))])])
+                                                        #f))))])])
                (if (or is-tail? (not (syntax-source expr)))
                    result-stx
                    (wcm-wrap (make-debug-info module-name expr bound-vars bound-vars 'normal #f (previous-bindings bound-vars))
