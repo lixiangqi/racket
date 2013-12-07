@@ -890,7 +890,7 @@
                                                         functions var-tables last-apps)))))]
             [else
              (let ([functions (map first fun-traces)]
-                   [var-tables (map second fun-traces)]
+                   [var-tables (map (lambda (m) (hash-copy ((second m)))) fun-traces)]
                    [last-apps (map third fun-traces)])
                (set! traces (append traces 
                                     (list (trace-struct exp val num #f functions 

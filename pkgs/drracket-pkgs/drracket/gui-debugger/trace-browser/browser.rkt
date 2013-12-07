@@ -36,7 +36,8 @@
            [function-calls empty]
            [last-app-list empty]
            [step 1]
-           [limit 0])
+           [limit 0]
+           [call? #f])
     
     (define log-text
       (new (class text%
@@ -244,10 +245,11 @@
       (with-unlock view-text
         (send view-text insert text)))
     
-    (define/public (add-syntax i #:highlight-color [highlight-color "LightCyan"])
+    (define/public (add-syntax i)
       (with-unlock view-text
         (let ([stx (list-ref function-calls i)]
-              [hi-stxs (if (> (add1 i) limit) null (list (list-ref last-app-list i)))])
+              [hi-stxs (if (> (add1 i) limit) null (list (list-ref last-app-list i)))]
+              [highlight-color "LightCyan"])
           (define display (print-syntax-to-editor stx view-text
                                                   (list-ref var-tables i)
                                                   (calculate-columns)
@@ -255,9 +257,9 @@
           (send view-text insert "\n")
           (define range (send/i display display<%> get-range))
           (define offset (send/i display display<%> get-start-position))
-          (if (zero? i)
-              (send/i display display<%> highlight-syntaxes hi-stxs "MistyRose")
-              (send/i display display<%> highlight-syntaxes hi-stxs highlight-color))
+          (when (and (zero? i) (not call?))
+            (set! highlight-color "MistyRose"))
+          (send/i display display<%> highlight-syntaxes hi-stxs highlight-color)
           (send display refresh))))
     
     (define/private (code-style text)
@@ -300,12 +302,23 @@
       (if slider
           (send slider-panel delete-child slider)
           (send view-panel change-children (lambda (l) (append l (list slider-panel navigator)))))
-      (let ([current-trace (list-ref traces n)])
-        (set! function-calls (reverse (trace-struct-funs current-trace)))
-        (unless (null? function-calls)
-          (set! var-tables (reverse (trace-struct-vars current-trace)))
-          (set! last-app-list (reverse (append (trace-struct-apps current-trace)
-                                               (list (trace-struct-inspect-stx current-trace)))))
+      (unless (null? (trace-struct-funs (list-ref traces n)))
+        (let* ([current-trace (list-ref traces n)]
+               [funs (trace-struct-funs current-trace)]
+               [vars (trace-struct-vars current-trace)]
+               [inspect-stx (trace-struct-inspect-stx current-trace)]
+               [apps (append (trace-struct-apps current-trace) (list inspect-stx))])
+          (cond
+            [inspect-stx
+             (set! function-calls (reverse funs))
+             (set! var-tables (reverse vars))
+             (set! last-app-list (reverse apps))
+             (set! call? #f)]
+            [else
+             (set! function-calls funs)
+             (set! var-tables vars)
+             (set! last-app-list (rest apps))
+             (set! call? #t)])
           (set! limit (length function-calls))
           (set! step 1)
           (send previous-button enable #t)
