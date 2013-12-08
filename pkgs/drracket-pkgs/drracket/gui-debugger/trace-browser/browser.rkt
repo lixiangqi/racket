@@ -115,7 +115,7 @@
                     (lock #t)
                     (end-edit-sequence))])
                  (erase-all)
-                 (initialize-view-text))
+                 (label-view-text "No trace selected\n"))
              
              (define/private (search-style-delta color)
                (let ([sd (new style-delta%)])
@@ -210,7 +210,8 @@
                              [label (list navigate-next-icon "Step" 'right)]
                              [parent navigator]
                              [callback (lambda (b e) (navigate-next))]))
-      (set! status-msg (new message% [label ""] [parent navigator] [stretchable-width #t])))
+      (set! status-msg (new message% [label ""] [parent navigator] [stretchable-width #t]))
+      (send view-panel change-children (lambda (l) (remove* (list slider-panel navigator) l eq?))))
        
     (define/private (navigate-previous)
       (set! step (sub1 step))
@@ -286,51 +287,55 @@
     
     (define/public (get-text) view-text)
     
-    (define/public (initialize-view-text)
+    (define/public (label-view-text label)
       (let ([sd (new style-delta%)])
         (with-unlock view-text
+          (send view-text erase)
           (send sd set-delta-foreground "gray")
-          (send view-text insert "No trace selected\n")
+          (send view-text insert label)
           (send view-text change-style sd (send view-text paragraph-start-position 0) 
                                           (send view-text paragraph-end-position 0))))
       (when slider
-        (send slider-panel delete-child slider))
-      (set! slider #f)
-      (send view-panel change-children (lambda (l) (remove* (list slider-panel navigator) l eq?))))
+        (send slider-panel delete-child slider)
+        (send view-panel change-children (lambda (l) (remove* (list slider-panel navigator) l eq?)))
+        (set! slider #f)))
     
     (define/private (update-view-text n)
-      (if slider
-          (send slider-panel delete-child slider)
-          (send view-panel change-children (lambda (l) (append l (list slider-panel navigator)))))
-      (unless (null? (trace-struct-funs (list-ref traces n)))
-        (let* ([current-trace (list-ref traces n)]
-               [funs (trace-struct-funs current-trace)]
-               [vars (trace-struct-vars current-trace)]
-               [inspect-stx (trace-struct-inspect-stx current-trace)]
-               [apps (append (trace-struct-apps current-trace) (list inspect-stx))])
-          (cond
-            [inspect-stx
-             (set! function-calls (reverse funs))
-             (set! var-tables (reverse vars))
-             (set! last-app-list (reverse apps))
-             (set! call? #f)]
-            [else
-             (set! function-calls funs)
-             (set! var-tables vars)
-             (set! last-app-list (rest apps))
-             (set! call? #t)])
-          (set! limit (length function-calls))
-          (set! step 1)
-          (send previous-button enable #t)
-          (send next-button enable #t)
-          (set! slider (new slider% 
-                            [label #f] 
-                            [min-value 1] 
-                            [max-value limit] 
-                            [parent slider-panel] 
-                            [style (list 'horizontal 'plain)]
-                            [callback (lambda (b e) (set-current-step (send slider get-value)))]))
-          (update-trace-view-forward))))
+      (cond
+        [(null? (trace-struct-funs (list-ref traces n)))
+         (label-view-text "No associated evaluation steps\n")]
+        [else
+         (if slider
+             (send slider-panel delete-child slider)
+             (send view-panel change-children (lambda (l) (append l (list slider-panel navigator)))))
+         (let* ([current-trace (list-ref traces n)]
+                [funs (trace-struct-funs current-trace)]
+                [vars (trace-struct-vars current-trace)]
+                [inspect-stx (trace-struct-inspect-stx current-trace)]
+                [apps (append (trace-struct-apps current-trace) (list inspect-stx))])
+           (cond
+             [inspect-stx
+              (set! function-calls (reverse funs))
+              (set! var-tables (reverse vars))
+              (set! last-app-list (reverse apps))
+              (set! call? #f)]
+             [else
+              (set! function-calls funs)
+              (set! var-tables vars)
+              (set! last-app-list (rest apps))
+              (set! call? #t)])
+           (set! limit (length function-calls))
+           (set! step 1)
+           (send previous-button enable #t)
+           (send next-button enable #t)
+           (set! slider (new slider% 
+                             [label #f] 
+                             [min-value 1] 
+                             [max-value limit] 
+                             [parent slider-panel] 
+                             [style (list 'horizontal 'plain)]
+                             [callback (lambda (b e) (set-current-step (send slider get-value)))]))
+           (update-trace-view-forward))]))
     
     (define/private (update-trace-view)
       (erase-all)
@@ -357,5 +362,5 @@
     (super-new)
     (send split-panel begin-container-sequence)
     (send split-panel set-percentages (list 1/3 2/3))
-    (initialize-view-text)
+    (label-view-text "No trace selected\n")
     (send split-panel end-container-sequence)))
