@@ -235,7 +235,6 @@
       (let ([logs (map (lambda (t) (format "~a: ~v\n" (syntax->datum (trace-struct-id-stx t)) (trace-struct-value t))) traces)])
         (send log-text set-var-logs logs)
         (send log-text display-logs)))
-      
              
     (send view-text set-styles-sticky #f)
     (send view-text lock #t)
