@@ -3,6 +3,7 @@
          racket/gui/base
          framework
          unstable/class-iop
+         mrlib/name-message
          "interface.rkt"
          "syntax-display.rkt"
          "text.rkt"
@@ -16,7 +17,7 @@
 (provide make-trace-browser
          trace-struct)
 
-(struct trace-struct (id-stx value number inspect-stx funs vars apps) #:transparent)
+(struct trace-struct (exp-stx value number inspect-stx funs vars apps) #:transparent)
 
 (define (make-trace-browser traces)
   (define frame (new frame%
@@ -36,7 +37,8 @@
            [function-calls empty]
            [last-app-list empty]
            [step 1]
-           [limit 0])
+           [limit 0]
+           [call? #f])
     
     (define log-text
       (new (class text%
@@ -114,7 +116,7 @@
                     (lock #t)
                     (end-edit-sequence))])
                  (erase-all)
-                 (initialize-view-text))
+                 (label-view-text "No trace selected\n"))
              
              (define/private (search-style-delta color)
                (let ([sd (new style-delta%)])
@@ -153,6 +155,16 @@
                (send log-text display-logs)
                (send log-text filter-logs (get-text))))))
     
+    (define sort-canvas%
+      (class name-message%
+        
+        (super-new)
+        (define/override (fill-popup menu reset)
+          (make-object menu:can-restore-menu-item% "sort"
+            menu
+            (λ (x y)
+              (void))))))
+    
     (define navigator 'uninitialized-navigator)
     (define previous-button 'uninitialized-previous-button)
     (define next-button 'uninitialized-next-button)
@@ -171,7 +183,6 @@
     (define search-panel
       (new horizontal-panel% 
            [parent log-panel]
-           [style '(border)]
            [stretchable-height #f]))
     (new editor-canvas% 
          [parent search-panel] 
@@ -188,7 +199,20 @@
          [parent log-panel] 
          [editor log-text] 
          [style '(auto-hscroll)])
+    
+    (define sort-panel
+      (new horizontal-panel%
+           [parent log-panel]
+           [stretchable-height #f]))
+    
+    (define sort-canvas
+      (new sort-canvas%
+         [parent sort-panel]))
+    (new message% [label ""] [parent sort-panel] [stretchable-width #t])
+             
     (send log-panel end-container-sequence)
+    
+    (send sort-canvas set-message #f "Sort")
       
     (define view-text (new browser-text%))
     (define view-panel (new vertical-panel% [parent split-panel]))
@@ -209,7 +233,8 @@
                              [label (list navigate-next-icon "Step" 'right)]
                              [parent navigator]
                              [callback (lambda (b e) (navigate-next))]))
-      (set! status-msg (new message% [label ""] [parent navigator] [stretchable-width #t])))
+      (set! status-msg (new message% [label ""] [parent navigator] [stretchable-width #t]))
+      (send view-panel change-children (lambda (l) (remove* (list slider-panel navigator) l eq?))))
        
     (define/private (navigate-previous)
       (set! step (sub1 step))
@@ -232,7 +257,7 @@
     
     (define/public (display-traces t)
       (set! traces t)
-      (let ([logs (map (lambda (t) (format "~a: ~v\n" (syntax->datum (trace-struct-id-stx t)) (trace-struct-value t))) traces)])
+      (let ([logs (map (lambda (t) (format "~a: ~v\n" (syntax->datum (trace-struct-exp-stx t)) (trace-struct-value t))) traces)])
         (send log-text set-var-logs logs)
         (send log-text display-logs)))
              
@@ -243,10 +268,11 @@
       (with-unlock view-text
         (send view-text insert text)))
     
-    (define/public (add-syntax i #:highlight-color [highlight-color "LightCyan"])
+    (define/public (add-syntax i)
       (with-unlock view-text
         (let ([stx (list-ref function-calls i)]
-              [hi-stxs (if (> (add1 i) limit) null (list (list-ref last-app-list i)))])
+              [hi-stxs (if (> (add1 i) limit) null (list (list-ref last-app-list i)))]
+              [highlight-color "LightCyan"])
           (define display (print-syntax-to-editor stx view-text
                                                   (list-ref var-tables i)
                                                   (calculate-columns)
@@ -254,9 +280,9 @@
           (send view-text insert "\n")
           (define range (send/i display display<%> get-range))
           (define offset (send/i display display<%> get-start-position))
-          (if (zero? i)
-              (send/i display display<%> highlight-syntaxes hi-stxs "MistyRose")
-              (send/i display display<%> highlight-syntaxes hi-stxs highlight-color))
+          (when (and (zero? i) (not call?))
+            (set! highlight-color "MistyRose"))
+          (send/i display display<%> highlight-syntaxes hi-stxs highlight-color)
           (send display refresh))))
     
     (define/private (code-style text)
@@ -283,40 +309,55 @@
     
     (define/public (get-text) view-text)
     
-    (define/public (initialize-view-text)
+    (define/public (label-view-text label)
       (let ([sd (new style-delta%)])
         (with-unlock view-text
+          (send view-text erase)
           (send sd set-delta-foreground "gray")
-          (send view-text insert "No trace selected\n")
+          (send view-text insert label)
           (send view-text change-style sd (send view-text paragraph-start-position 0) 
                                           (send view-text paragraph-end-position 0))))
       (when slider
-        (send slider-panel delete-child slider))
-      (set! slider #f)
-      (send view-panel change-children (lambda (l) (remove* (list slider-panel navigator) l eq?))))
+        (send slider-panel delete-child slider)
+        (send view-panel change-children (lambda (l) (remove* (list slider-panel navigator) l eq?)))
+        (set! slider #f)))
     
     (define/private (update-view-text n)
-      (if slider
-          (send slider-panel delete-child slider)
-          (send view-panel change-children (lambda (l) (append l (list slider-panel navigator)))))
-      (let ([current-trace (list-ref traces n)])
-        (set! function-calls (reverse (trace-struct-funs current-trace)))
-        (unless (null? function-calls)
-          (set! var-tables (reverse (trace-struct-vars current-trace)))
-          (set! last-app-list (reverse (append (trace-struct-apps current-trace)
-                                               (list (trace-struct-inspect-stx current-trace)))))
-          (set! limit (length function-calls))
-          (set! step 1)
-          (send previous-button enable #t)
-          (send next-button enable #t)
-          (set! slider (new slider% 
-                            [label #f] 
-                            [min-value 1] 
-                            [max-value limit] 
-                            [parent slider-panel] 
-                            [style (list 'horizontal 'plain)]
-                            [callback (lambda (b e) (set-current-step (send slider get-value)))]))
-          (update-trace-view-forward))))
+      (cond
+        [(null? (trace-struct-funs (list-ref traces n)))
+         (label-view-text "No associated evaluation steps\n")]
+        [else
+         (if slider
+             (send slider-panel delete-child slider)
+             (send view-panel change-children (lambda (l) (append l (list slider-panel navigator)))))
+         (let* ([current-trace (list-ref traces n)]
+                [funs (trace-struct-funs current-trace)]
+                [vars (trace-struct-vars current-trace)]
+                [inspect-stx (trace-struct-inspect-stx current-trace)]
+                [apps (append (trace-struct-apps current-trace) (list inspect-stx))])
+           (cond
+             [inspect-stx
+              (set! function-calls (reverse funs))
+              (set! var-tables (reverse vars))
+              (set! last-app-list (reverse apps))
+              (set! call? #f)]
+             [else
+              (set! function-calls funs)
+              (set! var-tables vars)
+              (set! last-app-list (rest apps))
+              (set! call? #t)])
+           (set! limit (length function-calls))
+           (set! step 1)
+           (send previous-button enable #t)
+           (send next-button enable #t)
+           (set! slider (new slider% 
+                             [label #f] 
+                             [min-value 1] 
+                             [max-value limit] 
+                             [parent slider-panel] 
+                             [style (list 'horizontal 'plain)]
+                             [callback (lambda (b e) (set-current-step (send slider get-value)))]))
+           (update-trace-view-forward))]))
     
     (define/private (update-trace-view)
       (erase-all)
@@ -343,5 +384,5 @@
     (super-new)
     (send split-panel begin-container-sequence)
     (send split-panel set-percentages (list 1/3 2/3))
-    (initialize-view-text)
+    (label-view-text "No trace selected\n")
     (send split-panel end-container-sequence)))

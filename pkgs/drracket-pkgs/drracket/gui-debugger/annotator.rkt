@@ -411,8 +411,8 @@
             
             [(#%plain-app . exprs)
              (let* ([subexprs (map (lambda (exp) 
-                                    (annotate exp bound-vars #f module-name lambda?))
-                                  (syntax->list #'exprs))]
+                                     (annotate exp bound-vars #f module-name lambda?))
+                                   (syntax->list #'exprs))]
                     [stx-property (syntax-property expr 'inspect)]
                     [result-stx
                      (cond
@@ -423,15 +423,14 @@
                                                     (lambda () #'exprs))])
                             (with-continuation-mark 'app orig-exp (#%plain-app . #,subexprs))))]
                        [(eq? (first stx-property) 'app)
-                        (with-syntax ([var (third (syntax->list expr))]
+                        (with-syntax ([call (third (syntax->list expr))]
                                       [num (second stx-property)])
                           (quasisyntax/loc expr
                             (begin
                               (set! record-function-traces? #t)
                               (set! function-traces null)
-                              (#%plain-app . #,subexprs)
-                              (#%plain-app #,record-log (hash-ref #,stx-table (syntax-position #'var) #'var)
-                                                        var
+                              (#%plain-app #,record-log (hash-ref #,stx-table (syntax-position #'call) #'call)
+                                                        call
                                                         num
                                                         #f
                                                         #f
@@ -447,8 +446,7 @@
                                                         num
                                                         (hash-ref #,stx-table (syntax-position #'exprs) #f) 
                                                         (current-continuation-marks)
-                                                        #f)
-                               )))])])
+                                                        #f))))])])
                (if (or is-tail? (not (syntax-source expr)))
                    result-stx
                    (wcm-wrap (make-debug-info module-name expr bound-vars bound-vars 'normal #f (previous-bindings bound-vars))
