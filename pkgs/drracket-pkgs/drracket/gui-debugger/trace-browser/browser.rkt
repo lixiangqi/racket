@@ -3,6 +3,7 @@
          racket/gui/base
          framework
          unstable/class-iop
+         mrlib/name-message
          "interface.rkt"
          "syntax-display.rkt"
          "text.rkt"
@@ -154,6 +155,16 @@
                (send log-text display-logs)
                (send log-text filter-logs (get-text))))))
     
+    (define sort-canvas%
+      (class name-message%
+        
+        (super-new)
+        (define/override (fill-popup menu reset)
+          (make-object menu:can-restore-menu-item% "sort"
+            menu
+            (λ (x y)
+              (void))))))
+    
     (define navigator 'uninitialized-navigator)
     (define previous-button 'uninitialized-previous-button)
     (define next-button 'uninitialized-next-button)
@@ -172,7 +183,6 @@
     (define search-panel
       (new horizontal-panel% 
            [parent log-panel]
-           [style '(border)]
            [stretchable-height #f]))
     (new editor-canvas% 
          [parent search-panel] 
@@ -189,7 +199,20 @@
          [parent log-panel] 
          [editor log-text] 
          [style '(auto-hscroll)])
+    
+    (define sort-panel
+      (new horizontal-panel%
+           [parent log-panel]
+           [stretchable-height #f]))
+    
+    (define sort-canvas
+      (new sort-canvas%
+         [parent sort-panel]))
+    (new message% [label ""] [parent sort-panel] [stretchable-width #t])
+             
     (send log-panel end-container-sequence)
+    
+    (send sort-canvas set-message #f "Sort")
       
     (define view-text (new browser-text%))
     (define view-panel (new vertical-panel% [parent split-panel]))
