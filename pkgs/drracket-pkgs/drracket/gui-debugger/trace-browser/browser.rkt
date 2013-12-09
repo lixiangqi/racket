@@ -158,12 +158,19 @@
     (define sort-canvas%
       (class name-message%
         
-        (super-new)
+        (super-new (label "Sort"))
+        (define/private (modify-sorting-order)
+          (void))
+          
         (define/override (fill-popup menu reset)
-          (make-object menu:can-restore-menu-item% "sort"
+          (make-object menu:can-restore-menu-item% "sort by position in file"
             menu
             (λ (x y)
-              (void))))))
+              (modify-sorting-order )))
+          (make-object menu:can-restore-menu-item% "sort by output time"
+            menu
+            (λ (x y)
+              (modify-sorting-order))))))
     
     (define navigator 'uninitialized-navigator)
     (define previous-button 'uninitialized-previous-button)
@@ -211,8 +218,6 @@
     (new message% [label ""] [parent sort-panel] [stretchable-width #t])
              
     (send log-panel end-container-sequence)
-    
-    (send sort-canvas set-message #f "Sort")
       
     (define view-text (new browser-text%))
     (define view-panel (new vertical-panel% [parent split-panel]))
