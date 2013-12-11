@@ -32,10 +32,11 @@
   (class object%
     (init parent)
     
-    (field [traces empty]
+    (field [traces null]
+           [sorted-traces null]
            [var-tables (make-hasheq)]
-           [function-calls empty]
-           [last-app-list empty]
+           [function-calls null]
+           [last-app-list null]
            [step 1]
            [limit 0]
            [call? #f])
@@ -159,18 +160,21 @@
       (class name-message%
         
         (super-new (label "Sort"))
-        (define/private (modify-sorting-order)
+        (define/private (modify-sorting-order position?)
+          (set! sorted-traces traces)
+          (sort sorted-traces < #:key (lambda (x) (syntax-position (trace-struct-exp-stx x))))
+          (printf "sorted-traces = ~a\n" sorted-traces)
           (void))
           
         (define/override (fill-popup menu reset)
           (make-object menu:can-restore-menu-item% "sort by position in file"
             menu
             (λ (x y)
-              (modify-sorting-order )))
-          (make-object menu:can-restore-menu-item% "sort by output time"
+              (modify-sorting-order #t)))
+          (make-object menu:can-restore-menu-item% "sort by log time"
             menu
             (λ (x y)
-              (modify-sorting-order))))))
+              (modify-sorting-order #f))))))
     
     (define navigator 'uninitialized-navigator)
     (define previous-button 'uninitialized-previous-button)
