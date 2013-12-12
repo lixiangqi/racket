@@ -55,11 +55,10 @@
                       change-style
                       line-paragraph
                       dc-location-to-editor-location
-                      paragraph-start-position
-                      paragraph-end-position
+                      line-start-position
+                      line-end-position
                       find-string-all
-                      position-line
-                      line-start-position)
+                      position-line)
              (super-new)
              
              (define var-logs null)
@@ -72,7 +71,6 @@
                (set! var-logs l))
              
              (define/public (update-logs l)
-               (set! var-logs null)
                (set! var-logs (append var-logs (list l))))
              
              (define/public (get-logs) var-logs)
@@ -90,8 +88,8 @@
                (begin-edit-sequence)
                (lock #f)
                (change-style normal-sd 0 (last-position))
-               (change-style bold-sd (paragraph-start-position mark-num)
-                                     (paragraph-end-position mark-num))
+               (change-style bold-sd (line-start-position mark-num)
+                                     (line-end-position mark-num))
                (lock #t)
                (end-edit-sequence))
              
@@ -133,17 +131,16 @@
              
              (define/override (on-event evt)
                (let*-values ([(x y) (dc-location-to-editor-location (send evt get-x) (send evt get-y))]
-                             [(line) (find-line y)]
-                             [(paragraph) (line-paragraph line)])
+                             [(line) (find-line y)])
                  (case (send evt get-event-type)
                    [(left-down)
                     (if (null? filter-lines)
-                        (when (< paragraph (length var-logs))
-                          (move-to-view paragraph)
-                          (update-view-text paragraph))
-                        (when (< paragraph (length filter-lines))
-                          (move-to-view paragraph)
-                          (update-view-text (list-ref filter-lines paragraph))))]))))))
+                        (when (< line (length var-logs))
+                          (move-to-view line)
+                          (update-view-text line))
+                        (when (< line (length filter-lines))
+                          (move-to-view line)
+                          (update-view-text (list-ref filter-lines line))))]))))))
                  
     (define search-text
       (new (class text%
@@ -284,20 +281,23 @@
     
     (define/public (display-sorted-traces)
       (let* ([j 0]
-             [index (car (list-ref indexes j))])
-        (send log-text update-logs (format "~a (num: ~a)\n" (syntax->datum index) (cdr (list-ref indexes j))))
-        (for ([i (in-list traces)])
+             [size (length indexes)]
+             [cur-index (list-ref indexes j)]
+             [index-stx (car cur-index)])
+        (send log-text set-var-logs null)
+        (send log-text update-logs (format "~a (num: ~a)\n" (syntax->datum index-stx) (cdr cur-index)))
+        (for ([i (in-list sorted-traces)])
           (cond
-            [(eq? (trace-struct-exp-stx i) index)
+            [(eq? (trace-struct-exp-stx i) index-stx)
              (send log-text update-logs (format "  ~v\n" (trace-struct-value i)))]
             [else
              (set! j (add1 j))
-             (set! index (car (list-ref indexes j)))
-             (send log-text update-logs (format "~a (num: ~a)\n" (syntax->datum index) (cdr i)))])))
-      (for-each 
-       (lambda (l)
-         (printf "~a\n" l))
-       (send log-text get-logs)))
+             (when (< j size)
+               (set! cur-index (list-ref indexes j))
+               (set! index-stx (car cur-index))
+               (send log-text update-logs (format "~a (num: ~a)\n" (syntax->datum (car cur-index)) (cdr cur-index)))
+               (send log-text update-logs (format "  ~v\n" (trace-struct-value i))))])))
+      (send log-text display-logs))
     
     (define/public (display-traces t)
       (set! traces t)
