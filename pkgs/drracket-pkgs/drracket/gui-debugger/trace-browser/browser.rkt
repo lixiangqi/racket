@@ -34,6 +34,7 @@
     
     (field [traces null]
            [sorted-traces null]
+           [indexes null]
            [var-tables (make-hasheq)]
            [function-calls null]
            [last-app-list null]
@@ -69,6 +70,12 @@
              
              (define/public (set-var-logs l)
                (set! var-logs l))
+             
+             (define/public (update-logs l)
+               (set! var-logs null)
+               (set! var-logs (append var-logs (list l))))
+             
+             (define/public (get-logs) var-logs)
              
              (define/public (display-logs)
                (begin-edit-sequence)
@@ -160,11 +167,22 @@
       (class name-message%
         
         (super-new (label "Sort"))
+        
         (define/private (modify-sorting-order position?)
-          (set! sorted-traces traces)
-          (sort sorted-traces < #:key (lambda (x) (syntax-position (trace-struct-exp-stx x))))
-          (printf "sorted-traces = ~a\n" sorted-traces)
-          (void))
+          (set! sorted-traces (sort traces < #:key (lambda (x) (syntax-position (trace-struct-exp-stx x)))))
+          (let ([start (trace-struct-exp-stx (first sorted-traces))]
+                [counter 0])
+            (for ([t (in-list sorted-traces)])
+              (let ([curr (trace-struct-exp-stx t)])
+                (cond 
+                  [(eq? curr start)
+                   (set! counter (add1 counter))]
+                  [else
+                   (set! indexes (append indexes (list (cons start counter))))
+                   (set! start curr)
+                   (set! counter 1)])))
+            (set! indexes (append indexes (list (cons start counter))))
+            (display-sorted-traces)))
           
         (define/override (fill-popup menu reset)
           (make-object menu:can-restore-menu-item% "sort by position in file"
@@ -263,6 +281,23 @@
         [(> step s) 
          (set! step s)
          (update-trace-view-backward)]))
+    
+    (define/public (display-sorted-traces)
+      (let* ([j 0]
+             [index (car (list-ref indexes j))])
+        (send log-text update-logs (format "~a (num: ~a)\n" (syntax->datum index) (cdr (list-ref indexes j))))
+        (for ([i (in-list traces)])
+          (cond
+            [(eq? (trace-struct-exp-stx i) index)
+             (send log-text update-logs (format "  ~v\n" (trace-struct-value i)))]
+            [else
+             (set! j (add1 j))
+             (set! index (car (list-ref indexes j)))
+             (send log-text update-logs (format "~a (num: ~a)\n" (syntax->datum index) (cdr i)))])))
+      (for-each 
+       (lambda (l)
+         (printf "~a\n" l))
+       (send log-text get-logs)))
     
     (define/public (display-traces t)
       (set! traces t)
