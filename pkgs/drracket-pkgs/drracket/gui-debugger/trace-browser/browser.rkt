@@ -40,7 +40,8 @@
            [last-app-list null]
            [step 1]
            [limit 0]
-           [call? #f])
+           [call? #f]
+           [sorted? #f])
     
     (define log-text
       (new (class text%
@@ -134,13 +135,21 @@
                              [(line) (find-line y)])
                  (case (send evt get-event-type)
                    [(left-down)
-                    (if (null? filter-lines)
-                        (when (< line (length var-logs))
-                          (move-to-view line)
-                          (update-view-text line))
-                        (when (< line (length filter-lines))
-                          (move-to-view line)
-                          (update-view-text (list-ref filter-lines line))))]))))))
+                    (cond
+                      [sorted?
+                       (when (< line (length sorted-traces))
+                         (let ([curr (list-ref sorted-traces line)])
+                           (when curr
+                             (move-to-view line)
+                             (update-view-text curr))))]
+                      [else
+                       (if (null? filter-lines)
+                           (when (< line (length var-logs))
+                             (move-to-view line)
+                             (update-view-text (list-ref traces line)))
+                           (when (< line (length filter-lines))
+                             (move-to-view line)
+                             (update-view-text (list-ref traces (list-ref filter-lines line)))))])]))))))
                  
     (define search-text
       (new (class text%
@@ -283,20 +292,26 @@
       (let* ([j 0]
              [size (length indexes)]
              [cur-index (list-ref indexes j)]
-             [index-stx (car cur-index)])
+             [index-stx (car cur-index)]
+             [tmp null])
         (send log-text set-var-logs null)
         (send log-text update-logs (format "~a (num: ~a)\n" (syntax->datum index-stx) (cdr cur-index)))
+        (set! tmp (append tmp (list #f)))
         (for ([i (in-list sorted-traces)])
           (cond
             [(eq? (trace-struct-exp-stx i) index-stx)
+             (set! tmp (append tmp (list i)))
              (send log-text update-logs (format "  ~v\n" (trace-struct-value i)))]
             [else
              (set! j (add1 j))
              (when (< j size)
                (set! cur-index (list-ref indexes j))
                (set! index-stx (car cur-index))
+               (set! tmp (append tmp (list #f i)))
                (send log-text update-logs (format "~a (num: ~a)\n" (syntax->datum (car cur-index)) (cdr cur-index)))
-               (send log-text update-logs (format "  ~v\n" (trace-struct-value i))))])))
+               (send log-text update-logs (format "  ~v\n" (trace-struct-value i))))]))
+        (set! sorted-traces tmp)
+        (set! sorted? #t))
       (send log-text display-logs))
     
     (define/public (display-traces t)
@@ -366,16 +381,15 @@
         (send view-panel change-children (lambda (l) (remove* (list slider-panel navigator) l eq?)))
         (set! slider #f)))
     
-    (define/private (update-view-text n)
+    (define/private (update-view-text current-trace)
       (cond
-        [(null? (trace-struct-funs (list-ref traces n)))
+        [(null? (trace-struct-funs current-trace))
          (label-view-text "No associated evaluation steps\n")]
         [else
          (if slider
              (send slider-panel delete-child slider)
              (send view-panel change-children (lambda (l) (append l (list slider-panel navigator)))))
-         (let* ([current-trace (list-ref traces n)]
-                [funs (trace-struct-funs current-trace)]
+         (let* ([funs (trace-struct-funs current-trace)]
                 [vars (trace-struct-vars current-trace)]
                 [inspect-stx (trace-struct-inspect-stx current-trace)]
                 [apps (append (trace-struct-apps current-trace) (list inspect-stx))])
