@@ -65,7 +65,6 @@
              (define var-logs null)
              (define filter-lines null)
              (define mark-num 0)
-             (define bold-sd (make-object style-delta% 'change-weight 'bold))
              (define normal-sd (make-object style-delta% 'change-weight 'normal))
              
              (define/public (set-var-logs l)
@@ -93,41 +92,6 @@
                                      (line-end-position mark-num))
                (lock #t)
                (end-edit-sequence))
-             
-             #;(define/public (filter-logs search-str)
-               (cond
-                 [(eq? search-str "")
-                  (set! filter-lines null)
-                  (display-logs)]
-                 [else
-                  (let* ([found (find-string-all search-str 'forward 0 (last-position))]
-                         [lines (map (lambda (p) (position-line p)) found)]
-                         ; offsets for aiding change-style 
-                         [offsets (map (lambda (p l) (- p (line-start-position l))) found lines)]
-                         [str-length (string-length search-str)]
-                         [last -1]
-                         [counter -1])
-                    (printf "found=~a\nlines=~a\noffset=~a\n" found lines offsets)
-                    (printf "------------------\n")
-                    ; only show one item in a single line
-                    (set! filter-lines (remove-duplicates lines))  
-                    (begin-edit-sequence)
-                    (lock #f)
-                    (delete 0 (last-position))
-                    (for ([i (in-range (length found))])
-                      (let ([line (list-ref lines i)])
-                        (unless (= line last)
-                          (insert (list-ref var-logs line))
-                          (set! counter (add1 counter))
-                          (let* ([offset (list-ref offsets i)]
-                                 [start-pos (+ (line-start-position counter) offset)]
-                                 [end-pos (+ start-pos str-length)])
-                            (change-style (search-style-delta "SeaGreen") start-pos end-pos))
-                          (set! last line))))
-                    (lock #t)
-                    (end-edit-sequence))])
-                 (erase-all)
-                 (label-view-text "No trace selected\n"))
              
              ;; insert filtered text and apply highlighting
              ;; only highlight the first found item in a single line
@@ -220,14 +184,14 @@
              (inherit get-text)
              
              (super-new)
-             (define bold-sd (make-object style-delta% 'change-weight 'bold))
-             
+               
              (define/augment (after-insert start len)
-               (update-str-to-search)
-               (inner (void) after-insert start len))
+               (inner (void) after-insert start len)
+               (update-str-to-search))
+             
              (define/augment (after-delete start len)
-               (update-str-to-search)
-               (inner (void) after-delete start len))
+               (inner (void) after-delete start len)
+               (update-str-to-search))
              
              (define/private (update-str-to-search)
                (send log-text display-logs)
@@ -339,6 +303,8 @@
                              [callback (lambda (b e) (navigate-next))]))
       (set! status-msg (new message% [label ""] [parent navigator] [stretchable-width #t]))
       (send view-panel change-children (lambda (l) (remove* (list slider-panel navigator) l eq?))))
+               
+    (define bold-sd (make-object style-delta% 'change-weight 'bold))           
        
     (define/private (navigate-previous)
       (set! step (sub1 step))
@@ -442,14 +408,17 @@
     
     (define/public (get-text) view-text)
     
-    (define/public (label-view-text label)
+    (define/private (label-text text label)
       (let ([sd (new style-delta%)])
-        (with-unlock view-text
-          (send view-text erase)
+        (with-unlock text
+          (send text erase)
           (send sd set-delta-foreground "gray")
-          (send view-text insert label)
-          (send view-text change-style sd (send view-text paragraph-start-position 0) 
-                                          (send view-text paragraph-end-position 0))))
+          (send text insert label)
+          (send text change-style sd (send text paragraph-start-position 0) 
+                                     (send text paragraph-end-position 0)))))
+    
+    (define/public (label-view-text label)
+      (label-text view-text label)
       (when slider
         (send slider-panel delete-child slider)
         (send view-panel change-children (lambda (l) (remove* (list slider-panel navigator) l eq?)))
