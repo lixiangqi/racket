@@ -25,7 +25,7 @@
                      [width 800]
                      [height 600]))
   (define widget (new widget% [parent frame]))
-  (send widget display-traces traces)
+  (send widget update-traces traces)
   (send frame show #t))
 
 (define widget%
@@ -94,7 +94,7 @@
                (lock #t)
                (end-edit-sequence))
              
-             (define/public (filter-logs search-str)
+             #;(define/public (filter-logs search-str)
                (cond
                  [(eq? search-str "")
                   (set! filter-lines null)
@@ -102,10 +102,14 @@
                  [else
                   (let* ([found (find-string-all search-str 'forward 0 (last-position))]
                          [lines (map (lambda (p) (position-line p)) found)]
+                         ; offsets for aiding change-style 
                          [offsets (map (lambda (p l) (- p (line-start-position l))) found lines)]
                          [str-length (string-length search-str)]
                          [last -1]
                          [counter -1])
+                    (printf "found=~a\nlines=~a\noffset=~a\n" found lines offsets)
+                    (printf "------------------\n")
+                    ; only show one item in a single line
                     (set! filter-lines (remove-duplicates lines))  
                     (begin-edit-sequence)
                     (lock #f)
@@ -122,6 +126,66 @@
                           (set! last line))))
                     (lock #t)
                     (end-edit-sequence))])
+                 (erase-all)
+                 (label-view-text "No trace selected\n"))
+             
+             ;; insert filtered text and apply highlighting
+             ;; only highlight the first found item in a single line
+             (define/private (add-filtered-text filter-lines lines offsets str-length)
+               (begin-edit-sequence)
+               (lock #f)
+               (delete 0 (last-position))
+               (for-each
+                (lambda (l)
+                  (insert (list-ref var-logs l)))
+                filter-lines)
+               (let ([last -1]
+                     [counter -1])
+                 (for ([i (in-range (length lines))])
+                   (let ([line (list-ref lines i)])
+                     (unless (= line last)
+                       (set! counter (add1 counter))
+                       (let* ([offset (list-ref offsets i)]
+                              [start-pos (+ (line-start-position counter) offset)]
+                              [end-pos (+ start-pos str-length)])
+                         (change-style (search-style-delta "Coral") start-pos end-pos))
+                       (set! last line)))))
+               (lock #t)
+               (end-edit-sequence))
+             
+             (define/public (filter-logs search-str)
+               (cond
+                 [(eq? search-str "")
+                  (set! filter-lines null)
+                  (display-logs)]
+                 
+                 [sorted?
+                  (let* ([found (find-string-all search-str 'forward 0 (last-position))]
+                         [lines (map (lambda (p) (position-line p)) found)]
+                         [offsets (map (lambda (p l) (- p (line-start-position l))) found lines)]
+                         [str-length (string-length search-str)]
+                         [tmp null]
+                         [trace-size (length sorted-traces)])
+                    ; if search for a sorted variable, add all lines of its values
+                    (for ([i (in-list (remove-duplicates lines))])
+                      (set! tmp (append tmp (list i)))
+                      (unless (list-ref sorted-traces i)
+                        (let loop ([j (add1 i)])
+                          (when (and (< j trace-size) (list-ref sorted-traces j))
+                            (set! tmp (append tmp (list j)))
+                            (loop (add1 j))))))
+                    (set! filter-lines (remove-duplicates tmp))
+                    ; insert filtered text
+                    (add-filtered-text filter-lines lines offsets str-length))]
+                 
+                 [else
+                  (let* ([found (find-string-all search-str 'forward 0 (last-position))]
+                         [lines (map (lambda (p) (position-line p)) found)]
+                         ; offsets for aiding change-style 
+                         [offsets (map (lambda (p l) (- p (line-start-position l))) found lines)]
+                         [str-length (string-length search-str)])
+                    (set! filter-lines (remove-duplicates lines))  
+                    (add-filtered-text filter-lines lines offsets str-length))])
                  (erase-all)
                  (label-view-text "No trace selected\n"))
              
@@ -175,30 +239,37 @@
         (super-new (label "Sort"))
         
         (define/private (modify-sorting-order position?)
-          (set! sorted-traces (sort traces < #:key (lambda (x) (syntax-position (trace-struct-exp-stx x)))))
-          (let ([start (trace-struct-exp-stx (first sorted-traces))]
-                [counter 0])
-            (for ([t (in-list sorted-traces)])
-              (let ([curr (trace-struct-exp-stx t)])
-                (cond 
-                  [(eq? curr start)
-                   (set! counter (add1 counter))]
-                  [else
-                   (set! indexes (append indexes (list (cons start counter))))
-                   (set! start curr)
-                   (set! counter 1)])))
-            (set! indexes (append indexes (list (cons start counter))))
-            (display-sorted-traces)))
+          (cond
+            [position?
+             (set! sorted-traces (sort traces < #:key (lambda (x) (syntax-position (trace-struct-exp-stx x)))))
+             (let ([start (trace-struct-exp-stx (first sorted-traces))]
+                   [counter 0])
+               (for ([t (in-list sorted-traces)])
+                 (let ([curr (trace-struct-exp-stx t)])
+                   (cond 
+                     [(eq? curr start)
+                      (set! counter (add1 counter))]
+                     [else
+                      (set! indexes (append indexes (list (cons start counter))))
+                      (set! start curr)
+                      (set! counter 1)])))
+               (set! indexes (append indexes (list (cons start counter))))
+               (display-sorted-traces))]
+            [else
+             (set! sorted? #f)
+             (display-traces)]))
           
         (define/override (fill-popup menu reset)
           (make-object menu:can-restore-menu-item% "sort by position in file"
             menu
             (λ (x y)
-              (modify-sorting-order #t)))
+              (unless sorted?
+                (modify-sorting-order #t))))
           (make-object menu:can-restore-menu-item% "sort by log time"
             menu
             (λ (x y)
-              (modify-sorting-order #f))))))
+              (when sorted?
+                (modify-sorting-order #f)))))))
     
     (define navigator 'uninitialized-navigator)
     (define previous-button 'uninitialized-previous-button)
@@ -288,7 +359,7 @@
          (set! step s)
          (update-trace-view-backward)]))
     
-    (define/public (display-sorted-traces)
+    (define/private (display-sorted-traces)
       (let* ([j 0]
              [size (length indexes)]
              [cur-index (list-ref indexes j)]
@@ -314,12 +385,15 @@
         (set! sorted? #t))
       (send log-text display-logs))
     
-    (define/public (display-traces t)
-      (set! traces t)
+    (define/private (display-traces)
       (let ([logs (map (lambda (t) (format "~a: ~v\n" (syntax->datum (trace-struct-exp-stx t)) (trace-struct-value t))) traces)])
         (send log-text set-var-logs logs)
         (send log-text display-logs)))
-             
+    
+    (define/public (update-traces t)
+      (set! traces t)
+      (display-traces))
+    
     (send view-text set-styles-sticky #f)
     (send view-text lock #t)
     
