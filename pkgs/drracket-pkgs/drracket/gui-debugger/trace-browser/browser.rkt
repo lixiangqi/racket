@@ -220,7 +220,7 @@
                (inner (void) after-delete start len)
                (update-str-to-search))
              
-             (define/private (update-str-to-search)
+             (define/public (update-str-to-search)
                (send log-text display-logs)
                (send log-text filter-logs (get-text))))))
     
@@ -248,7 +248,8 @@
                (display-sorted-traces))]
             [else
              (set! sorted? #f)
-             (display-traces)]))
+             (display-traces)])
+          (send search-text update-str-to-search))
           
         (define/override (fill-popup menu reset)
           (make-object menu:can-restore-menu-item% "sort by position in file"
