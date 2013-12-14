@@ -107,19 +107,27 @@
                 (lambda (l)
                   (insert (list-ref var-logs l)))
                 filter-lines)
-               (let ([last -1]
-                     [counter 0])
-                 (for ([i (in-range (length lines))])
-                   (let ([line (list-ref lines i)])
-                     (unless (= line last)
-                       (let* ([offset (list-ref offsets i)]
-                              [start-pos (+ (line-start-position counter) offset)]
-                              [end-pos (+ start-pos str-length)])
-                         (change-style (search-style-delta "Coral") start-pos end-pos))
-                       (if sorted?
-                           (set! counter (+ (cdr (list-ref indexes line)) 1))
-                           (set! counter (add1 counter)))
-                       (set! last line)))))
+               (cond
+                 [sorted?
+                  (let ([counter 0])
+                    (for ([line (in-list lines)]
+                          [offset (in-list offsets)])
+                      (let* ([start-pos (+ (line-start-position counter) offset)]
+                             [end-pos (+ start-pos str-length)])
+                        (change-style (search-style-delta "Coral") start-pos end-pos))
+                      (set! counter (+ (hash-ref counts line) 1))))]
+                 [else
+                  (let ([last -1]
+                        [counter 0])
+                    (for ([i (in-range (length lines))])
+                      (let ([line (list-ref lines i)])
+                        (unless (= line last)
+                          (let* ([offset (list-ref offsets i)]
+                                 [start-pos (+ (line-start-position counter) offset)]
+                                 [end-pos (+ start-pos str-length)])
+                            (change-style (search-style-delta "Coral") start-pos end-pos))
+                          (set! counter (add1 counter))
+                          (set! last line)))))])
                (lock #t)
                (end-edit-sequence))
              
@@ -136,14 +144,27 @@
                          [str-length (string-length search-str)]
                          [tmp null]
                          [trace-size (length sorted-traces)])
+                    ; remove duplicate items in lines and items not in expression line
+                    ; update the corresponding offsets
+                    (let ([last -1]
+                          [tmp-lines null]
+                          [tmp-offsets null])
+                      (for ([i (in-range (length lines))])
+                        (let ([line (list-ref lines i)])
+                          (when (and (not (= line last))
+                                     (not (list-ref sorted-traces line)))
+                            (set! tmp-lines (append tmp-lines (list line)))
+                            (set! tmp-offsets (append tmp-offsets (list (list-ref offsets i))))
+                            (set! last line))))
+                      (set! lines tmp-lines)
+                      (set! offsets tmp-offsets))
                     ; if search for a sorted variable, add all lines of its values
-                    (for ([i (in-list (remove-duplicates lines))])
+                    (for ([i (in-list lines)])
                       (set! tmp (append tmp (list i)))
-                      (unless (list-ref sorted-traces i)
-                        (let loop ([j (add1 i)])
-                          (when (and (< j trace-size) (list-ref sorted-traces j))
-                            (set! tmp (append tmp (list j)))
-                            (loop (add1 j))))))
+                      (let loop ([j (add1 i)])
+                        (when (and (< j trace-size) (list-ref sorted-traces j))
+                          (set! tmp (append tmp (list j)))
+                          (loop (add1 j)))))
                     (set! filter-lines tmp)
                     ; insert filtered text
                     (add-filtered-text filter-lines lines offsets str-length))]
