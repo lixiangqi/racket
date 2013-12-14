@@ -64,6 +64,7 @@
              
              (define var-logs null)
              (define filter-lines null)
+             (define counts (make-hasheq))
              (define mark-num 0)
              (define normal-sd (make-object style-delta% 'change-weight 'normal))
              
@@ -75,6 +76,9 @@
              
              (define/public (get-logs) var-logs)
              
+             (define/public (update-counts i count)
+               (hash-set! counts i count))
+               
              (define/public (display-logs)
                (begin-edit-sequence)
                (lock #f)
@@ -104,15 +108,17 @@
                   (insert (list-ref var-logs l)))
                 filter-lines)
                (let ([last -1]
-                     [counter -1])
+                     [counter 0])
                  (for ([i (in-range (length lines))])
                    (let ([line (list-ref lines i)])
                      (unless (= line last)
-                       (set! counter (add1 counter))
                        (let* ([offset (list-ref offsets i)]
                               [start-pos (+ (line-start-position counter) offset)]
                               [end-pos (+ start-pos str-length)])
                          (change-style (search-style-delta "Coral") start-pos end-pos))
+                       (if sorted?
+                           (set! counter (+ (cdr (list-ref indexes line)) 1))
+                           (set! counter (add1 counter)))
                        (set! last line)))))
                (lock #t)
                (end-edit-sequence))
@@ -138,7 +144,7 @@
                           (when (and (< j trace-size) (list-ref sorted-traces j))
                             (set! tmp (append tmp (list j)))
                             (loop (add1 j))))))
-                    (set! filter-lines (remove-duplicates tmp))
+                    (set! filter-lines tmp)
                     ; insert filtered text
                     (add-filtered-text filter-lines lines offsets str-length))]
                  
@@ -330,9 +336,11 @@
              [size (length indexes)]
              [cur-index (list-ref indexes j)]
              [index-stx (car cur-index)]
+             [index-count (cdr cur-index)]
              [tmp null])
         (send log-text set-var-logs null)
-        (send log-text update-logs (format "~a (num: ~a)\n" (syntax->datum index-stx) (cdr cur-index)))
+        (send log-text update-logs (format "~a (num: ~a)\n" (syntax->datum index-stx) index-count))
+        (send log-text update-counts (length tmp) index-count)
         (set! tmp (append tmp (list #f)))
         (for ([i (in-list sorted-traces)])
           (cond
@@ -344,6 +352,7 @@
              (when (< j size)
                (set! cur-index (list-ref indexes j))
                (set! index-stx (car cur-index))
+               (send log-text update-counts (length tmp) (cdr cur-index))
                (set! tmp (append tmp (list #f i)))
                (send log-text update-logs (format "~a (num: ~a)\n" (syntax->datum (car cur-index)) (cdr cur-index)))
                (send log-text update-logs (format "  ~v\n" (trace-struct-value i))))]))
