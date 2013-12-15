@@ -832,6 +832,7 @@
                [single-step? (box #t)]
                [top-level-bindings empty]
                [traces empty]
+               [trace-counts (make-hasheq)]
                [control-panel #f])
         
         (define/public (debug?) want-debug?)
@@ -879,22 +880,26 @@
         
         (define/public (update-logs exp val num inspect-stx ccm fun-traces)
           (send (send (get-frame) get-trace-button) enable #t)
-          (cond
-            [inspect-stx
-             (let* ([marks (continuation-mark-set-first ccm 'inspect null)]
-                    [functions (map first marks)]
-                    [var-tables (map (lambda (m) (hash-copy ((second m)))) marks)]
-                    [last-apps (map third marks)])
-               (set! traces (append traces
-                                    (list (trace-struct exp val num inspect-stx
-                                                        functions var-tables last-apps)))))]
-            [else
-             (let ([functions (map first fun-traces)]
-                   [var-tables (map (lambda (m) (hash-copy ((second m)))) fun-traces)]
-                   [last-apps (map third fun-traces)])
-               (set! traces (append traces 
-                                    (list (trace-struct exp val num #f functions 
-                                                        var-tables last-apps)))))]))
+          (let* ([pos (syntax-position exp)]
+                 [count (hash-ref trace-counts pos 0)])
+            (when (< count num)
+              (hash-set! trace-counts pos (add1 count))
+              (cond
+                [inspect-stx
+                 (let* ([marks (continuation-mark-set-first ccm 'inspect null)]
+                        [functions (map first marks)]
+                        [var-tables (map (lambda (m) (hash-copy ((second m)))) marks)]
+                        [last-apps (map third marks)])
+                   (set! traces (append traces
+                                        (list (trace-struct exp val num inspect-stx
+                                                            functions var-tables last-apps)))))]
+                [else
+                 (let ([functions (map first fun-traces)]
+                       [var-tables (map (lambda (m) (hash-copy ((second m)))) fun-traces)]
+                       [last-apps (map third fun-traces)])
+                   (set! traces (append traces 
+                                        (list (trace-struct exp val num #f functions 
+                                                            var-tables last-apps)))))]))))
         
         (define/public (move-to-frame the-frame-num)
           (set-box! frame-num the-frame-num)
