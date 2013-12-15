@@ -458,7 +458,7 @@
     (define/private (update-view-text current-trace)
       (cond
         [(null? (trace-struct-funs current-trace))
-         (label-view-text "No associated evaluation steps\n")]
+         (label-view-text "No associated function application\n")]
         [else
          (if slider
              (send slider-panel delete-child slider)
