@@ -1,6 +1,5 @@
 #lang racket/base
 (require racket/class
-         racket/path
          racket/gui/base
          framework
          unstable/class-iop
@@ -8,43 +7,17 @@
          "interface.rkt"
          "syntax-display.rkt"
          "text.rkt"
-         "util.rkt" 
+         "util.rkt"
          images/compile-time
          images/icons/misc
          (for-syntax racket/base
                      images/icons/control
                      images/icons/style)
          (except-in racket/list range))
-(provide make-trace-browser
+(provide widget%
          trace-struct)
 
 (struct trace-struct (exp-stx value number inspect-stx funs vars apps) #:transparent)
-
-(define trace-frame%
-  (class frame%
-    (init-field (filename #f))
-    
-    (define obsoleted? #f)
-         
-    (define/private (make-label)
-      (if filename
-          (string-append (path->string
-                          (file-name-from-path filename))
-                         (if obsoleted? " (old)" "")
-                         " - Trace browser")
-          "Trace browser"))
-    
-    (super-new (label (make-label))
-               (width 800)
-               (height 600))))
-
-(define (make-trace-browser traces fn)
-  (define frame (new trace-frame%
-                     [filename fn]))
-  (define widget (new widget% [parent frame]))
-  (send widget update-traces traces)
-  (send frame show #t)
-  frame)
 
 (define widget%
   (class object%

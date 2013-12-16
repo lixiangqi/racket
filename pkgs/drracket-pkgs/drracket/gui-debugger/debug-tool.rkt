@@ -17,7 +17,7 @@
          "annotator.rkt"
          "load-sandbox.rkt"
          "syntax-traversal.rkt"
-         "trace-browser/browser.rkt"
+         "trace-browser/frame.rkt"
          framework
          string-constants
          lang/debugger-language-interface
@@ -1311,12 +1311,13 @@
         (define debug-panel 'uninitialized-debug-panel)
         (define stack-view-panel 'uninitialized-stack-view-panel)
         (define stack-frames 'uninitialized-stack-frames)
-        (define trace-frame 'uninitialized-trace-frame)
         (define variables-text 'uninitialized-variables-text)
         (define highlight-color (make-object color% 207 255 207))
         (define bold-sd (make-object style-delta% 'change-weight 'bold))
         (define normal-sd (make-object style-delta% 'change-weight 'normal))
         (define mouse-over-frame #f)
+        (define trace-frame #f)
+        (define trace-frame-is-showing? #f)
         (define/override (get-definitions/interactions-panel-parent)
           (set! debug-grandparent-panel
                 (new (class panel:horizontal-dragable%
@@ -1438,7 +1439,9 @@
                   (lambda (l) (cons debug-panel l)))))
         
         (define/public (obsolete-trace-browser)
-          (void))
+          (void)
+          #;(when trace-frame-is-showing?
+            (send trace-frame add-obsoleted-message)))
         
         (super-new)
         
@@ -1558,7 +1561,8 @@
             [callback (lambda (button evt)
                         (set! trace-frame 
                               (make-trace-browser (send (get-current-tab) get-traces)
-                                                  (send (get-definitions-text) get-filename/untitled-name))))]
+                                                  (send (get-definitions-text) get-filename/untitled-name)))
+                        (set! trace-frame-is-showing? #t))]
             [enabled #f]))        
         
         (define/public (get-trace-button) trace-button)
