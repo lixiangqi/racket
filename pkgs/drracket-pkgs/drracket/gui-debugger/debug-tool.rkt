@@ -1150,6 +1150,7 @@
           (set! pos-vec (make-vector (add1 (send (get-defs) last-position)) #f))
           (set! top-level-bindings empty)
           (set! traces empty)
+          (set! trace-counts (make-hasheq))
           (set! resume-ch (make-channel))
           (set! suspend-sema (make-semaphore 1))
           (set! in-user-ch (make-channel))
@@ -1161,6 +1162,7 @@
         (define/augment (on-close)
           (inner (void) on-close)
           (set-box! closed? #t)
+          (printf "on-close entered!")
           (for-each (lambda (t) (send t prepare-execution #f)) slaves))
         
         (define/public (hide-debug)
@@ -1230,6 +1232,13 @@
                (super execute-callback)]
               [else
                (already-debugging tab)])))
+        
+        (define/augment (on-close)
+          (printf "frame on-close entered!\n")
+          (when trace-frame
+            (send trace-frame show #f))
+              
+          (inner (void) on-close))
         
         (define/private (already-debugging tab)
           (message-box
@@ -1429,7 +1438,10 @@
             (send debug-grandparent-panel change-children
                   (lambda (l) (remq stack-view-panel l)))
             (send debug-parent-panel change-children
-                  (lambda (l) (remq debug-panel l)))))
+                  (lambda (l) (remq debug-panel l))))
+          (printf "hide-debug entered\n")
+          (when trace-frame
+            (send trace-frame show #f)))
         
         (define/public (show-debug)
           (unless (member debug-panel (send debug-parent-panel get-children))
