@@ -26,7 +26,8 @@
                      [height 600]))
   (define widget (new widget% [parent frame]))
   (send widget update-traces traces)
-  (send frame show #t))
+  (send frame show #t)
+  frame)
 
 (define widget%
   (class object%

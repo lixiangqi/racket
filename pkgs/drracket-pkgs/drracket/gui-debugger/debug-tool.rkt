@@ -189,6 +189,16 @@
         (define mouse-over-pos #f)
         (super-instantiate ())
         
+        (define metadata-changing-now? #f)
+        
+        (define/augment (begin-metadata-changes)
+          (set! metadata-changing-now? #t)
+          (inner (void) begin-metadata-changes))
+
+        (define/augment (end-metadata-changes)
+          (set! metadata-changing-now? #f)
+          (inner (void) end-metadata-changes))
+        
         (define/augment (on-delete start len)
           (begin-edit-sequence)
           (let ([breakpoints (send (get-tab) get-breakpoints)]
@@ -209,6 +219,8 @@
                   (set! shifts (cons (cons (- pos len) status) shifts))])))
             (for-each (lambda (p) (hash-set! breakpoints (car p) (cdr p)))
                       shifts))
+          (unless metadata-changing-now?
+            (send (send (get-tab) get-frame) obsolete-trace-browser))
           (inner (void) on-delete start len))
         
         (define/augment (after-delete start len)
@@ -232,6 +244,8 @@
             ;; update the breakpoint locations
             (for-each (lambda (p) (hash-set! breakpoints (car p) (cdr p)))
                       shifts))
+          (unless metadata-changing-now?
+            (send (send (get-tab) get-frame) obsolete-trace-browser))
           (inner (void) on-insert start len))
         
         (define/augment (after-insert start len)
@@ -1297,6 +1311,7 @@
         (define debug-panel 'uninitialized-debug-panel)
         (define stack-view-panel 'uninitialized-stack-view-panel)
         (define stack-frames 'uninitialized-stack-frames)
+        (define trace-frame 'uninitialized-trace-frame)
         (define variables-text 'uninitialized-variables-text)
         (define highlight-color (make-object color% 207 255 207))
         (define bold-sd (make-object style-delta% 'change-weight 'bold))
@@ -1422,6 +1437,9 @@
             (send debug-parent-panel change-children
                   (lambda (l) (cons debug-panel l)))))
         
+        (define/public (obsolete-trace-browser)
+          (void))
+        
         (super-new)
         
         (define status-message
@@ -1538,7 +1556,7 @@
             [label "Trace View"]
             [parent debug-panel]
             [callback (lambda (button evt)
-                        (make-trace-browser (send (get-current-tab) get-traces)))]
+                        (set! trace-frame (make-trace-browser (send (get-current-tab) get-traces))))]
             [enabled #f]))        
         
         (define/public (get-trace-button) trace-button)
