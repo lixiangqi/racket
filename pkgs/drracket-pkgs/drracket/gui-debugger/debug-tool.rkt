@@ -1556,7 +1556,9 @@
             [label "Trace View"]
             [parent debug-panel]
             [callback (lambda (button evt)
-                        (set! trace-frame (make-trace-browser (send (get-current-tab) get-traces))))]
+                        (set! trace-frame 
+                              (make-trace-browser (send (get-current-tab) get-traces)
+                                                  (send (get-definitions-text) get-filename/untitled-name))))]
             [enabled #f]))        
         
         (define/public (get-trace-button) trace-button)

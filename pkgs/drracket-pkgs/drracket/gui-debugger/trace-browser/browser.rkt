@@ -1,5 +1,6 @@
 #lang racket/base
 (require racket/class
+         racket/path
          racket/gui/base
          framework
          unstable/class-iop
@@ -19,11 +20,27 @@
 
 (struct trace-struct (exp-stx value number inspect-stx funs vars apps) #:transparent)
 
-(define (make-trace-browser traces)
-  (define frame (new frame%
-                     [label "Trace Browser"]
-                     [width 800]
-                     [height 600]))
+(define trace-frame%
+  (class frame%
+    (init-field (filename #f))
+    
+    (define obsoleted? #f)
+         
+    (define/private (make-label)
+      (if filename
+          (string-append (path->string
+                          (file-name-from-path filename))
+                         (if obsoleted? " (old)" "")
+                         " - Trace browser")
+          "Trace browser"))
+    
+    (super-new (label (make-label))
+               (width 800)
+               (height 600))))
+
+(define (make-trace-browser traces fn)
+  (define frame (new trace-frame%
+                     [filename fn]))
   (define widget (new widget% [parent frame]))
   (send widget update-traces traces)
   (send frame show #t)
