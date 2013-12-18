@@ -189,16 +189,6 @@
         (define mouse-over-pos #f)
         (super-instantiate ())
         
-        (define metadata-changing-now? #f)
-        
-        (define/augment (begin-metadata-changes)
-          (set! metadata-changing-now? #t)
-          (inner (void) begin-metadata-changes))
-
-        (define/augment (end-metadata-changes)
-          (set! metadata-changing-now? #f)
-          (inner (void) end-metadata-changes))
-        
         (define/augment (on-delete start len)
           (begin-edit-sequence)
           (let ([breakpoints (send (get-tab) get-breakpoints)]
@@ -219,8 +209,6 @@
                   (set! shifts (cons (cons (- pos len) status) shifts))])))
             (for-each (lambda (p) (hash-set! breakpoints (car p) (cdr p)))
                       shifts))
-          (unless metadata-changing-now?
-            (send (send (get-tab) get-frame) obsolete-trace-browser))
           (inner (void) on-delete start len))
         
         (define/augment (after-delete start len)
@@ -244,8 +232,6 @@
             ;; update the breakpoint locations
             (for-each (lambda (p) (hash-set! breakpoints (car p) (cdr p)))
                       shifts))
-          (unless metadata-changing-now?
-            (send (send (get-tab) get-frame) obsolete-trace-browser))
           (inner (void) on-insert start len))
         
         (define/augment (after-insert start len)
@@ -1098,7 +1084,6 @@
           (set-box! stack-frames #f)
           (set-box! break-status #f)
           (set-box! frame-num 0)
-          (send (send (get-frame) get-trace-button) enable #f)
           (send (send (get-frame) get-pause-button) enable #t)
           (send (send (get-frame) get-step-button) enable #f)
           (send (send (get-frame) get-step-over-button) enable #f)
@@ -1162,7 +1147,6 @@
         (define/augment (on-close)
           (inner (void) on-close)
           (set-box! closed? #t)
-          (printf "on-close entered!")
           (for-each (lambda (t) (send t prepare-execution #f)) slaves))
         
         (define/public (hide-debug)
@@ -1234,10 +1218,8 @@
                (already-debugging tab)])))
         
         (define/augment (on-close)
-          (printf "frame on-close entered!\n")
-          (when trace-frame
+          (when trace-frame-is-showing?
             (send trace-frame show #f))
-              
           (inner (void) on-close))
         
         (define/private (already-debugging tab)
@@ -1439,8 +1421,9 @@
                   (lambda (l) (remq stack-view-panel l)))
             (send debug-parent-panel change-children
                   (lambda (l) (remq debug-panel l))))
-          (when trace-frame
-            (send trace-frame show #f)))
+          (when trace-frame-is-showing?
+            (send trace-frame show #f)
+            (set! trace-frame-is-showing? #f)))
         
         (define/public (show-debug)
           (unless (member debug-panel (send debug-parent-panel get-children))
@@ -1448,11 +1431,6 @@
                   (lambda (l) (append l (list stack-view-panel))))
             (send debug-parent-panel change-children
                   (lambda (l) (cons debug-panel l)))))
-        
-        (define/public (obsolete-trace-browser)
-          (void)
-          #;(when trace-frame-is-showing?
-            (send trace-frame add-obsoleted-message)))
         
         (super-new)
         
@@ -1598,6 +1576,9 @@
                     (send new resume-gui))
                 (show-debug))
               (hide-debug))
+          (if (null? (send new get-traces))
+              (send trace-button enable #f)
+              (send trace-button enable #t))
           (inner (void) on-tab-change old new))
         
         (define/public (check-current-language-for-debugger)
