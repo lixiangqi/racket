@@ -1439,7 +1439,6 @@
                   (lambda (l) (remq stack-view-panel l)))
             (send debug-parent-panel change-children
                   (lambda (l) (remq debug-panel l))))
-          (printf "hide-debug entered\n")
           (when trace-frame
             (send trace-frame show #f)))
         
