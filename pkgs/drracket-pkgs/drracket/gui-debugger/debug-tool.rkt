@@ -1542,16 +1542,25 @@
                [parent debug-panel]
                [callback (make-big-step-callback #t)]
                [enabled #f]))
+        
+        (define/private (update-trace-callback)
+          (let ([trace (send (get-current-tab) get-traces)])
+            (if trace-frame
+                (begin
+                  (unless (send trace-frame is-shown?)
+                    (send trace-frame show #t))
+                  (send (send trace-frame get-widget) update-traces trace))
+                (set! trace-frame
+                      (make-trace-browser (send (get-current-tab) get-traces)
+                                          (send (get-definitions-text) get-filename/untitled-name))))
+            (set! trace-frame-is-showing? #t)))
 
         (define trace-button
           (instantiate button% ()
             [label "Trace View"]
             [parent debug-panel]
             [callback (lambda (button evt)
-                        (set! trace-frame 
-                              (make-trace-browser (send (get-current-tab) get-traces)
-                                                  (send (get-definitions-text) get-filename/untitled-name)))
-                        (set! trace-frame-is-showing? #t))]
+                        (update-trace-callback))]
             [enabled #f]))        
         
         (define/public (get-trace-button) trace-button)
