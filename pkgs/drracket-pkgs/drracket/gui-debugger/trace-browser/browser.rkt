@@ -478,7 +478,7 @@
                              [min-value 1] 
                              [max-value limit] 
                              [parent slider-panel] 
-                             [style (list 'horizontal 'plain)]
+                             [style (list 'horizontal 'horizontal-label)]
                              [callback (lambda (b e) (set-current-step (send slider get-value)))]))
            (update-trace-view-forward))]))
     

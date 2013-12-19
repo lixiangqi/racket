@@ -1173,12 +1173,14 @@
     (define pause-bitmap (compiled-bitmap (pause-icon #:color run-icon-color)))
     (define resume-bitmap (compiled-bitmap (play-icon #:color run-icon-color)))
     (define step-bitmap (compiled-bitmap (step-icon #:color run-icon-color)))
+    (define trace-bitmap (compiled-bitmap (record-icon #:color run-icon-color)))
 
     (define make-pause-label (bitmap-label-maker "Pause" pause-bitmap))
     (define make-resume-label (bitmap-label-maker "Go" resume-bitmap))
     (define make-step-label (bitmap-label-maker "Step" step-bitmap))
     (define make-over-label (bitmap-label-maker "Over" over-bitmap))
     (define make-out-label (bitmap-label-maker "Out" out-bitmap))
+    (define make-trace-label (bitmap-label-maker "Trace View" trace-bitmap))
     
     (define (debug-unit-frame-mixin super%)
       (class super%
@@ -1557,7 +1559,7 @@
 
         (define trace-button
           (instantiate button% ()
-            [label "Trace View"]
+            [label (make-trace-label this)]
             [parent debug-panel]
             [callback (lambda (button evt)
                         (update-trace-callback))]
