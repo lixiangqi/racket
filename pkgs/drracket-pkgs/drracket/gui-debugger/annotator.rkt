@@ -410,7 +410,7 @@
                                      #,(annotate #'body bound-vars is-tail? module-name lambda?)))]
             
             [(#%plain-app . exprs)
-             (let* ([subexprs (map (lambda (exp) 
+             (let* ([subexprs (map (lambda (exp)
                                      (annotate exp bound-vars #f module-name lambda?))
                                    (syntax->list #'exprs))]
                     [stx-property (syntax-property expr 'inspect)]

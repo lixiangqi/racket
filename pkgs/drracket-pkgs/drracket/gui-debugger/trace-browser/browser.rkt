@@ -374,7 +374,7 @@
       (send log-text display-logs))
     
     (define/private (display-traces)
-      (let ([logs (map (lambda (t) (format "~a: ~v\n" (syntax->datum (trace-struct-exp-stx t)) (trace-struct-value t))) traces)])
+      (let ([logs (map (lambda (t) (format "~a = ~v\n" (syntax->datum (trace-struct-exp-stx t)) (trace-struct-value t))) traces)])
         (send log-text set-var-logs logs)
         (send log-text display-logs)))
     
