@@ -221,7 +221,6 @@
         (super-new (label "Sort"))
         
         (define/private (modify-sorting-order position?)
-          (printf "entered!!!!!\n")
           (cond
             [position?
              (set! sorted-traces (sort traces < #:key (lambda (x) (syntax-position (trace-struct-exp-stx x)))))

@@ -833,6 +833,7 @@
                [top-level-bindings empty]
                [traces empty]
                [trace-counts (make-hasheq)]
+               [trace-frame #f]
                [control-panel #f])
         
         (define/public (debug?) want-debug?)
@@ -866,6 +867,8 @@
         
         (define/public (get-single-step-box) single-step?)
         (define/public (get-traces) traces)
+        (define/public (get-trace-frame) trace-frame)
+        (define/public (set-trace-frame f) (set! trace-frame f))
         (define/public (set-single-step?! v) (set-box! single-step? v))
         (define/public (set-break-status stat) (set-box! break-status stat))
         (define/public (add-top-level-binding var rd/wr)
@@ -1136,6 +1139,7 @@
           (set! top-level-bindings empty)
           (set! traces empty)
           (set! trace-counts (make-hasheq))
+          (set! trace-frame #f)
           (set! resume-ch (make-channel))
           (set! suspend-sema (make-semaphore 1))
           (set! in-user-ch (make-channel))
@@ -1220,8 +1224,9 @@
                (already-debugging tab)])))
         
         (define/augment (on-close)
-          (when trace-frame-is-showing?
-            (send trace-frame show #f))
+          (let ([trace-frame (send (get-current-tab) get-trace-frame)])
+            (when trace-frame
+              (send trace-frame show #f)))
           (inner (void) on-close))
         
         (define/private (already-debugging tab)
@@ -1309,8 +1314,6 @@
         (define bold-sd (make-object style-delta% 'change-weight 'bold))
         (define normal-sd (make-object style-delta% 'change-weight 'normal))
         (define mouse-over-frame #f)
-        (define trace-frame #f)
-        (define trace-frame-is-showing? #f)
         (define/override (get-definitions/interactions-panel-parent)
           (set! debug-grandparent-panel
                 (new (class panel:horizontal-dragable%
@@ -1422,10 +1425,7 @@
             (send debug-grandparent-panel change-children
                   (lambda (l) (remq stack-view-panel l)))
             (send debug-parent-panel change-children
-                  (lambda (l) (remq debug-panel l))))
-          (when trace-frame-is-showing?
-            (send trace-frame show #f)
-            (set! trace-frame-is-showing? #f)))
+                  (lambda (l) (remq debug-panel l)))))
         
         (define/public (show-debug)
           (unless (member debug-panel (send debug-parent-panel get-children))
@@ -1546,16 +1546,16 @@
                [enabled #f]))
         
         (define/private (update-trace-callback)
-          (let ([trace (send (get-current-tab) get-traces)])
-            (if trace-frame
+          (let ([trace (send (get-current-tab) get-traces)]
+                [frame (send (get-current-tab) get-trace-frame)])
+            (if frame
                 (begin
-                  (unless (send trace-frame is-shown?)
-                    (send trace-frame show #t))
-                  (send (send trace-frame get-widget) update-traces trace))
-                (set! trace-frame
+                  (send (send frame get-widget) update-traces trace)
+                  (unless (send frame is-shown?)
+                    (send frame show #t)))
+                (send (get-current-tab) set-trace-frame
                       (make-trace-browser trace
-                                          (send (get-definitions-text) get-filename/untitled-name))))
-            (set! trace-frame-is-showing? #t)))
+                                          (send (get-definitions-text) get-filename/untitled-name))))))
 
         (define trace-button
           (instantiate button% ()
@@ -1590,6 +1590,9 @@
           (if (null? (send new get-traces))
               (send trace-button enable #f)
               (send trace-button enable #t))
+          (let ([trace-frame (send old get-trace-frame)])
+            (when trace-frame 
+              (send trace-frame show #f)))
           (inner (void) on-tab-change old new))
         
         (define/public (check-current-language-for-debugger)
