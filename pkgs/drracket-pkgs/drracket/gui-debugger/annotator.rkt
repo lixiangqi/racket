@@ -424,7 +424,8 @@
                             (with-continuation-mark 'app orig-exp (#%plain-app . #,subexprs))))]
                        [(eq? (first stx-property) 'app)
                         (with-syntax ([call (third (syntax->list expr))]
-                                      [num (second stx-property)])
+                                      [num (second stx-property)]
+                                      [label (third stx-property)])
                           (quasisyntax/loc expr
                             (begin
                               (set! record-function-traces? #t)
@@ -432,18 +433,21 @@
                               (#%plain-app #,record-log (hash-ref #,stx-table (syntax-position #'call) #'call)
                                                         call
                                                         num
+                                                        label
                                                         #f
                                                         #f
                                                         function-traces))))]
                        [else
                         (with-syntax ([var (third (syntax->list expr))]
-                                      [num (second stx-property)])
+                                      [num (second stx-property)]
+                                      [label (third stx-property)])
                           (quasisyntax/loc expr
                             (begin
                               (#%plain-app . #,subexprs)
                               (#%plain-app #,record-log #'var
                                                         var
                                                         num
+                                                        label
                                                         (hash-ref #,stx-table (syntax-position #'exprs) #f) 
                                                         (current-continuation-marks)
                                                         #f))))])])

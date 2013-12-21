@@ -685,13 +685,13 @@
                                       add-top-level-binding var rd/wr))]
                              [else (void)]))
                          ; record-log
-                         (lambda (exp val num inspect-stx ccm fun-traces)
+                         (lambda (exp val num label inspect-stx ccm fun-traces)
                            (cond
                              [(filename->defs (robust-syntax-source exp))
                               =>
                               (lambda (defs)
                                 (send (send defs get-tab)
-                                      update-logs exp val num inspect-stx ccm fun-traces))]
+                                      update-logs exp val num label inspect-stx ccm fun-traces))]
                              [else (void)]))
                          (get-pos-table)
                          source))
@@ -878,7 +878,7 @@
                    (free-identifier=? var (caar bindings))) (cdar bindings)]
               [else (loop (rest bindings))])))
         
-        (define/public (update-logs exp val num inspect-stx ccm fun-traces)
+        (define/public (update-logs exp val num label inspect-stx ccm fun-traces)
           (send (send (get-frame) get-trace-button) enable #t)
           (let* ([pos (syntax-position exp)]
                  [count (hash-ref trace-counts pos 0)])
@@ -891,14 +891,14 @@
                         [var-tables (map (lambda (m) (hash-copy ((second m)))) marks)]
                         [last-apps (map third marks)])
                    (set! traces (append traces
-                                        (list (trace-struct exp val num inspect-stx
+                                        (list (trace-struct exp val num label inspect-stx
                                                             functions var-tables last-apps)))))]
                 [else
                  (let ([functions (map first fun-traces)]
                        [var-tables (map (lambda (m) (hash-copy ((second m)))) fun-traces)]
                        [last-apps (map third fun-traces)])
                    (set! traces (append traces 
-                                        (list (trace-struct exp val num #f functions 
+                                        (list (trace-struct exp val num label #f functions 
                                                             var-tables last-apps)))))]))))
         
         (define/public (move-to-frame the-frame-num)
@@ -1553,7 +1553,7 @@
                     (send trace-frame show #t))
                   (send (send trace-frame get-widget) update-traces trace))
                 (set! trace-frame
-                      (make-trace-browser (send (get-current-tab) get-traces)
+                      (make-trace-browser trace
                                           (send (get-definitions-text) get-filename/untitled-name))))
             (set! trace-frame-is-showing? #t)))
 
