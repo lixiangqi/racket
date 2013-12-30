@@ -35,6 +35,7 @@
                "srfi-lib"
                "srfi-doc"
                "unstable"
+               "unstable-list-lib"
                "drracket-plugin-lib"
                "gui-pkg-manager-lib"))
 (define build-deps '("compatibility-doc"
