@@ -17,7 +17,7 @@
 (provide widget%
          trace-struct)
 
-(struct trace-struct (exp-stx value number inspect-stx funs vars apps) #:transparent)
+(struct trace-struct (exp-stx value number label inspect-stx funs vars apps) #:transparent)
 
 (define widget%
   (class object%
@@ -225,6 +225,7 @@
             [position?
              (set! sorted-traces (sort traces < #:key (lambda (x) (syntax-position (trace-struct-exp-stx x)))))
              (let ([start (trace-struct-exp-stx (first sorted-traces))]
+                   [label (trace-struct-label (first sorted-traces))]
                    [counter 0])
                (for ([t (in-list sorted-traces)])
                  (let ([curr (trace-struct-exp-stx t)])
@@ -232,10 +233,11 @@
                      [(eq? curr start)
                       (set! counter (add1 counter))]
                      [else
-                      (set! indexes (append indexes (list (cons start counter))))
+                      (set! indexes (append indexes (list (list start counter label))))
                       (set! start curr)
+                      (set! label (trace-struct-label t))
                       (set! counter 1)])))
-               (set! indexes (append indexes (list (cons start counter))))
+               (set! indexes (append indexes (list (list start counter label))))
                (display-sorted-traces))]
             [else
              (set! sorted? #f)
@@ -348,11 +350,14 @@
       (let* ([j 0]
              [size (length indexes)]
              [cur-index (list-ref indexes j)]
-             [index-stx (car cur-index)]
-             [index-count (cdr cur-index)]
+             [index-stx (first cur-index)]
+             [index-count (second cur-index)]
+             [label (third cur-index)]
              [tmp null])
         (send log-text set-var-logs null)
-        (send log-text update-logs (format "~a (num: ~a)\n" (syntax->datum index-stx) index-count))
+        (if (eq? label "")
+            (send log-text update-logs (format "~a (num: ~a)\n" (syntax->datum index-stx) index-count))
+            (send log-text update-logs (format "~a: ~a (num: ~a)\n" label (syntax->datum index-stx) index-count)))
         (send log-text update-counts (length tmp) index-count)
         (set! tmp (append tmp (list #f)))
         (for ([i (in-list sorted-traces)])
@@ -364,17 +369,26 @@
              (set! j (add1 j))
              (when (< j size)
                (set! cur-index (list-ref indexes j))
-               (set! index-stx (car cur-index))
-               (send log-text update-counts (length tmp) (cdr cur-index))
+               (set! index-stx (first cur-index))
+               (set! index-count (second cur-index))
+               (set! label (third cur-index))
+               (send log-text update-counts (length tmp) index-count)
                (set! tmp (append tmp (list #f i)))
-               (send log-text update-logs (format "~a (num: ~a)\n" (syntax->datum (car cur-index)) (cdr cur-index)))
+               (if (eq? label "")
+                   (send log-text update-logs (format "~a (num: ~a)\n" (syntax->datum index-stx) index-count))
+                   (send log-text update-logs (format "~a: ~a (num: ~a)\n" label (syntax->datum index-stx) index-count)))
                (send log-text update-logs (format "  ~v\n" (trace-struct-value i))))]))
         (set! sorted-traces tmp)
         (set! sorted? #t))
       (send log-text display-logs))
     
     (define/private (display-traces)
-      (let ([logs (map (lambda (t) (format "~a = ~v\n" (syntax->datum (trace-struct-exp-stx t)) (trace-struct-value t))) traces)])
+      (let ([logs (map (lambda (t) 
+                         (let ([label (trace-struct-label t)])
+                           (if (eq? label "")
+                               (format "~a = ~v\n" (syntax->datum (trace-struct-exp-stx t)) (trace-struct-value t))
+                               (format "~a: ~a = ~v\n" label (syntax->datum (trace-struct-exp-stx t)) (trace-struct-value t)))))
+                       traces)])
         (send log-text set-var-logs logs)
         (send log-text display-logs)))
     
