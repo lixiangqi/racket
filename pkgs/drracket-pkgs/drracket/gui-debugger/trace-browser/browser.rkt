@@ -485,7 +485,6 @@
               (set! call? #t)])
            (set! limit (length function-calls))
            (set! step 1)
-           (send previous-button enable #t)
            (send next-button enable #t)
            (set! slider (new slider% 
                              [label #f] 
@@ -508,7 +507,9 @@
       (send status-msg set-label (format "Trace ~a of ~a" step limit)))      
     
     (define/private (update-trace-view-forward)
-      (send previous-button enable #t)
+      (if (= step 1)
+          (send previous-button enable #f)
+          (send previous-button enable #t))
       (when (>= step limit) (send next-button enable #f))
       (update-trace-view))
     
