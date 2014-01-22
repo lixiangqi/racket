@@ -250,7 +250,7 @@
             (λ (x y)
               (unless sorted?
                 (modify-sorting-order #t))))
-          (make-object menu:can-restore-menu-item% "sort by log time"
+          (make-object menu:can-restore-menu-item% "sort by logging time"
             menu
             (λ (x y)
               (when sorted?
@@ -356,8 +356,8 @@
              [tmp null])
         (send log-text set-var-logs null)
         (if (eq? label "")
-            (send log-text update-logs (format "~a (num: ~a)\n" (syntax->datum index-stx) index-count))
-            (send log-text update-logs (format "~a: ~a (num: ~a)\n" label (syntax->datum index-stx) index-count)))
+            (send log-text update-logs (format "~a (size: ~a)\n" (syntax->datum index-stx) index-count))
+            (send log-text update-logs (format "~a: ~a (size: ~a)\n" label (syntax->datum index-stx) index-count)))
         (send log-text update-counts (length tmp) index-count)
         (set! tmp (append tmp (list #f)))
         (for ([i (in-list sorted-traces)])
@@ -375,8 +375,8 @@
                (send log-text update-counts (length tmp) index-count)
                (set! tmp (append tmp (list #f i)))
                (if (eq? label "")
-                   (send log-text update-logs (format "~a (num: ~a)\n" (syntax->datum index-stx) index-count))
-                   (send log-text update-logs (format "~a: ~a (num: ~a)\n" label (syntax->datum index-stx) index-count)))
+                   (send log-text update-logs (format "~a (size: ~a)\n" (syntax->datum index-stx) index-count))
+                   (send log-text update-logs (format "~a: ~a (size: ~a)\n" label (syntax->datum index-stx) index-count)))
                (send log-text update-logs (format "  ~v\n" (trace-struct-value i))))]))
         (set! sorted-traces tmp)
         (set! sorted? #t))
@@ -490,8 +490,8 @@
                              [label #f] 
                              [min-value 1] 
                              [max-value limit] 
-                             [parent slider-panel] 
-                             [style (list 'horizontal 'horizontal-label)]
+                             [parent slider-panel]
+                             [style (list 'horizontal 'plain)]
                              [callback (lambda (b e) (set-current-step (send slider get-value)))]))
            (update-trace-view-forward))]))
     
@@ -504,7 +504,7 @@
          (add-syntax (- step 2))
          (add-separator)
          (add-syntax (sub1 step))])
-      (send status-msg set-label (format "Trace ~a of ~a" step limit)))      
+      (send status-msg set-label (format "Step ~a of ~a" step limit)))      
     
     (define/private (update-trace-view-forward)
       (if (= step 1)
