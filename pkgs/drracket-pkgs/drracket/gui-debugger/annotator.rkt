@@ -300,48 +300,10 @@
                                            (loop (cdr bodies)))))])
               (quasisyntax/loc clause
                 (arg-list
-                 #,@new-bodies)))]))
-               
-        
-        #;(define (lambda-clause-annotator clause)
-          (kernel:kernel-syntax-case
-           clause #f
-           [(arg-list . bodies)
-            (let* ([new-bound-vars (arglist-bindings #'arg-list)]
-                   [all-bound-vars (append new-bound-vars bound-vars)]
-                   [new-bodies (let loop ([bodies (syntax->list #'bodies)])
-                                 (if (equal? '() (cdr bodies))
-                                     (list (annotate (car bodies) all-bound-vars #t module-name #t))
-                                     (cons (annotate (car bodies) all-bound-vars #f module-name #t)
-                                           (loop (cdr bodies)))))]
-                   [debug-info-stx (assemble-debug-info new-bound-vars new-bound-vars 'normal #f)]
-                   [arg-pos-info (map syntax-position new-bound-vars)])
-              (for-each (lambda (id) (record-bound-id 'bind id id)) new-bound-vars)
-              (with-syntax ([body (first (syntax->list #'bodies))]
-                            [lambda-clause clause])
-                (quasisyntax/loc clause
-                  (arg-list
-                   (let ([debugger-local-bindings
-                          (#%plain-lambda ()
-                            (#%plain-app
-                             list*
-                             #,@debug-info-stx
-                             #,(previous-bindings bound-vars)))]
-                         [captured (continuation-mark-set-first #f 'inspect null)]
-                         [var-table (make-hasheq)]
-                         [function-stx (hash-ref #,stx-table 
-                                             (syntax-position (quote-syntax lambda-clause)) 
-                                             (lambda () (quote-syntax lambda-clause)))])
-                     (unless (empty? '#,arg-pos-info)
-                       (for-each (lambda (pos val) (hash-ref! var-table pos val)) '#,arg-pos-info (list #,@debug-info-stx)))
-                     (let ([trace (list function-stx (#%plain-lambda () var-table) (continuation-mark-set-first #f 'app null))])
-                       (if record-function-traces?
-                           (begin
-                             (set! function-traces (append function-traces (list trace)))
-                             #,@new-bodies)
-                           (with-continuation-mark 'inspect (append captured (list trace))
-                             (begin
-                               #,@new-bodies)))))))))]))
+                 (printf "lambda: ~a...\n" #'bodies)
+                 (with-continuation-mark 'inspect #'bodies
+                   (begin
+                     #,@new-bodies)))))]))
 
         (define annotated
           (rearm
@@ -388,7 +350,10 @@
                  (quasisyntax/loc expr
                    (let ([ns (variable-reference->namespace (#%variable-reference))])
                      (if (namespace-variable-value (syntax-e #'op) #f (lambda () #f) ns)
-                         (#,ap (#,traced-value op (#,dtree 'lff (quote op))) #,@params)
+                         (begin
+                           (printf "going to call ...: ~a\n" #'exprs)
+                         (#,ap (#,traced-value op (#,dtree 'lff (quote op))) #,@params))
+                         ; do not need to keep track of the library functions; no traced form
                          (#,ap op #,@params))))))]
             
             [else (error 'expr-syntax-object-iterator "unknown expr: ~a"

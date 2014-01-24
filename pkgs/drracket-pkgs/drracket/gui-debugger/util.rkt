@@ -25,6 +25,7 @@
             [traced-res (traced-value res (dtree 'app (atree (traced-value-trace fun) 
                                                              (map (lambda (a) (when (traced-value? a) (traced-value-trace a))) args)
                                                              (dtree 'lf res))))])
+       (printf "ap case ...cm=~a\n" (continuation-mark-set->list (current-continuation-marks) 'inspect))
        (if (traced-value? res)
            (traced-value (traced-value-val res)
                          (dtree 'app (atree (traced-value-trace fun) (map traced-value-trace args) (traced-value-trace res))))
