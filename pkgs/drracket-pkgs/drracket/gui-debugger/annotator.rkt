@@ -154,6 +154,8 @@
       
       (define breakpoints (make-hasheq))
       
+      (define function-trace (make-hasheq))
+      
       (define (previous-bindings bound-vars)
         (if (null? bound-vars)
             #'null
@@ -297,13 +299,25 @@
                                  (if (equal? '() (cdr bodies))
                                      (list (annotate (car bodies) all-bound-vars #t module-name #t))
                                      (cons (annotate (car bodies) all-bound-vars #f module-name #t)
-                                           (loop (cdr bodies)))))])
-              (quasisyntax/loc clause
-                (arg-list
-                 (printf "lambda: ~a...\n" #'bodies)
-                 (with-continuation-mark 'inspect #'bodies
-                   (begin
-                     #,@new-bodies)))))]))
+                                           (loop (cdr bodies)))))]
+                   [debug-info-stx (assemble-debug-info new-bound-vars new-bound-vars 'normal #f)])
+              (with-syntax ([lambda-clause clause])
+                (quasisyntax/loc clause
+                  (arg-list
+                   (let ([var-table (make-hasheq)]
+                         [function-stx (hash-ref #,stx-table 
+                                                 (syntax-position (quote-syntax lambda-clause)) 
+                                                 (lambda () (quote-syntax lambda-clause)))]
+                         [values (map (lambda (x) (#,traced-value-val (x))) (list #,@debug-info-stx))])
+                     (unless (empty? '#,new-bound-vars)
+                       (for-each (lambda (var val) (hash-set! var-table var (#,traced-value-val (val)))) '#,new-bound-vars (list #,@debug-info-stx)))
+                     #;(hash-set! #,function-trace 'lambda (list function-stx (#%plain-lambda () var-table)))
+                     (hash-set! #,function-trace 'lambda (list function-stx var-table))
+                     ;(printf "hash-table=~a\n" #,function-trace)
+                     (with-continuation-mark 'inspect values
+                     (begin
+                     
+                     #,@new-bodies)))))))]))
 
         (define annotated
           (rearm
@@ -313,7 +327,6 @@
             [var-stx 
              (identifier? #'var-stx)
              expr]
-                         
             [(#%plain-lambda . clause)
              (quasisyntax/loc expr 
                (#%plain-lambda #,@(lambda-clause-annotator #'clause)))]
@@ -345,16 +358,31 @@
             [(#%plain-app . exprs)
              (let ([params (map (lambda (exp)
                                   (annotate exp bound-vars #f module-name lambda?))
-                                (rest (syntax->list #'exprs)))])
+                                (rest (syntax->list #'exprs)))]
+                   [stx-property (syntax-property expr 'inspect)])
+               (cond
+                 [stx-property
+                  (with-syntax ([var (third (syntax->list expr))])
+                  (quasisyntax/loc expr
+                    (begin
+                    #,expr
+                    (#%plain-app #,record-log #'var
+                                              var
+                                              #f #f #f null #f))
+                    ))]
+                 [else
                (with-syntax ([op (first (syntax->list #'exprs))])
                  (quasisyntax/loc expr
                    (let ([ns (variable-reference->namespace (#%variable-reference))])
                      (if (namespace-variable-value (syntax-e #'op) #f (lambda () #f) ns)
                          (begin
-                           (printf "going to call ...: ~a\n" #'exprs)
-                         (#,ap (#,traced-value op (#,dtree 'lff (quote op))) #,@params))
+                           (hash-set! #,function-trace 'lambda null)
+                           ;(printf "going to call=~a\n" op)
+                           (let ([val (#,ap (#,traced-value op (#,dtree 'lff (quote op))) #,@params)]
+                                 [fun-trace (hash-ref #,function-trace 'lambda)])
+                             (#,append-function-trace val fun-trace)))
                          ; do not need to keep track of the library functions; no traced form
-                         (#,ap op #,@params))))))]
+                         (#,ap op #,@params)))))]))]
             
             [else (error 'expr-syntax-object-iterator "unknown expr: ~a"
                          (syntax->datum expr))])))

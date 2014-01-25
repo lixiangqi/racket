@@ -883,7 +883,8 @@
         
         (define/public (update-logs exp val num label inspect-stx ccm fun-traces)
           (send (send (get-frame) get-trace-button) enable #t)
-          (let* ([pos (syntax-position exp)]
+          ;(printf "update-logs: exp=~a, val=~a\n" exp val)
+          #;(let* ([pos (syntax-position exp)]
                  [count (hash-ref trace-counts pos 0)])
             (when (< count num)
               (hash-set! trace-counts pos (add1 count))
