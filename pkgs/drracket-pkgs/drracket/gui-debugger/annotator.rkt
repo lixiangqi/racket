@@ -154,7 +154,7 @@
       
       (define breakpoints (make-hasheq))
       
-      (define function-trace (make-hasheq))
+      (define argtable (make-hasheq))
       
       (define (previous-bindings bound-vars)
         (if (null? bound-vars)
@@ -301,23 +301,17 @@
                                      (cons (annotate (car bodies) all-bound-vars #f module-name #t)
                                            (loop (cdr bodies)))))]
                    [debug-info-stx (assemble-debug-info new-bound-vars new-bound-vars 'normal #f)])
+              (hash-set! argtable (syntax-position clause) new-bound-vars)
               (with-syntax ([lambda-clause clause])
                 (quasisyntax/loc clause
                   (arg-list
-                   (let ([var-table (make-hasheq)]
-                         [function-stx (hash-ref #,stx-table 
+                   (let ([function-stx (hash-ref #,stx-table 
                                                  (syntax-position (quote-syntax lambda-clause)) 
                                                  (lambda () (quote-syntax lambda-clause)))]
-                         [values (map (lambda (x) (#,traced-value-val (x))) (list #,@debug-info-stx))])
-                     (unless (empty? '#,new-bound-vars)
-                       (for-each (lambda (var val) (hash-set! var-table var (#,traced-value-val (val)))) '#,new-bound-vars (list #,@debug-info-stx)))
-                     #;(hash-set! #,function-trace 'lambda (list function-stx (#%plain-lambda () var-table)))
-                     (hash-set! #,function-trace 'lambda (list function-stx var-table))
-                     ;(printf "hash-table=~a\n" #,function-trace)
-                     (with-continuation-mark 'inspect values
-                     (begin
-                     
-                     #,@new-bodies)))))))]))
+                         [arg-values (map (lambda (x) (#,traced-value-val (x))) (list #,@debug-info-stx))])
+                     (with-continuation-mark 'inspect (cons function-stx arg-values)
+                       (begin
+                         #,@new-bodies)))))))]))
 
         (define annotated
           (rearm
@@ -350,39 +344,31 @@
                                    (traverse (cdr lst)))))])
                (quasisyntax/loc expr (begin #,@(traverse (syntax->list #'bodies)))))]
             
-            
             [(quote datum)
              (quasisyntax/loc expr (#,traced-value datum (#,dtree 'lf datum)))]
-             
-           
+            
             [(#%plain-app . exprs)
              (let ([params (map (lambda (exp)
                                   (annotate exp bound-vars #f module-name lambda?))
                                 (rest (syntax->list #'exprs)))]
                    [stx-property (syntax-property expr 'inspect)])
-               (cond
+               (cond 
                  [stx-property
-                  (with-syntax ([var (third (syntax->list expr))])
-                  (quasisyntax/loc expr
-                    (begin
-                    #,expr
-                    (#%plain-app #,record-log #'var
-                                              var
-                                              #f #f #f null #f))
-                    ))]
+                  (with-syntax ([to-inspect (third (syntax->list expr))]
+                                [op (first (syntax->list #'exprs))])
+                    (quasisyntax/loc expr
+                      (let ([to-inspect-stx (hash-ref #,stx-table (syntax-position #'to-inspect) #'to-inspect)])
+                        (#%plain-app #,record-log to-inspect-stx
+                                     #,@params
+                                     #f #f #f null #f))))]
                  [else
-               (with-syntax ([op (first (syntax->list #'exprs))])
-                 (quasisyntax/loc expr
-                   (let ([ns (variable-reference->namespace (#%variable-reference))])
-                     (if (namespace-variable-value (syntax-e #'op) #f (lambda () #f) ns)
-                         (begin
-                           (hash-set! #,function-trace 'lambda null)
-                           ;(printf "going to call=~a\n" op)
-                           (let ([val (#,ap (#,traced-value op (#,dtree 'lff (quote op))) #,@params)]
-                                 [fun-trace (hash-ref #,function-trace 'lambda)])
-                             (#,append-function-trace val fun-trace)))
-                         ; do not need to keep track of the library functions; no traced form
-                         (#,ap op #,@params)))))]))]
+                  (with-syntax ([op (first (syntax->list #'exprs))])
+                    (quasisyntax/loc expr
+                      (let ([ns (variable-reference->namespace (#%variable-reference))])
+                        (if (namespace-variable-value (syntax-e #'op) #f (lambda () #f) ns)
+                            (#,ap (#,traced-value op (#,dtree 'lff (quote op))) #,@params)
+                            ; do not need to keep track of the library functions; no traced form
+                            (#,ap op #,@params)))))]))]
             
             [else (error 'expr-syntax-object-iterator "unknown expr: ~a"
                          (syntax->datum expr))])))
