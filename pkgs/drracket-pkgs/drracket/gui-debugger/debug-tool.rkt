@@ -657,7 +657,7 @@
                       (define source (syntax-source stx))
                       (define breakpoints (stx-source->breakpoints source))
                       (define pos-vec (stx-source->pos-vec source))
-                      (define-values (annotated break-posns)
+                      (define-values (annotated break-posns arg-table defs)
                         (annotate-for-single-stepping
                          (expand-syntax stx)
                          break? break-before break-after
@@ -695,6 +695,8 @@
                              [else (void)]))
                          (get-pos-table)
                          source))
+                      (send (get-tab) set-arg-table arg-table)
+                      (send (get-tab) set-def-table defs)
                       (hash-for-each
                        breakpoints
                        (lambda (pos status)
@@ -834,6 +836,8 @@
                [traces empty]
                [trace-counts (make-hasheq)]
                [trace-frame #f]
+               [arg-table #f]
+               [def-table #f]
                [control-panel #f])
         
         (define/public (debug?) want-debug?)
@@ -871,6 +875,11 @@
         (define/public (set-trace-frame f) (set! trace-frame f))
         (define/public (set-single-step?! v) (set-box! single-step? v))
         (define/public (set-break-status stat) (set-box! break-status stat))
+        
+        (define/public (set-arg-table t) (set! arg-table t))
+        (define/public (set-def-table t) (set! def-table t))
+        (define/public (get-trace-table) (cons arg-table def-table))
+          
         (define/public (add-top-level-binding var rd/wr)
           (set! top-level-bindings (cons (cons var rd/wr) top-level-bindings)))
         (define/public (lookup-top-level-var var failure-thunk)
@@ -883,27 +892,12 @@
         
         (define/public (update-logs exp val num label inspect-stx ccm fun-traces)
           (send (send (get-frame) get-trace-button) enable #t)
-          (printf "update-logs: exp=~a, val=~a\n" exp val)
-          #;(let* ([pos (syntax-position exp)]
+          (let* ([pos (syntax-position exp)]
                  [count (hash-ref trace-counts pos 0)])
-            (when (< count num)
+            (when (< count 50) ; to modify
               (hash-set! trace-counts pos (add1 count))
-              (cond
-                [inspect-stx
-                 (let* ([marks (continuation-mark-set-first ccm 'inspect null)]
-                        [functions (map first marks)]
-                        [var-tables (map (lambda (m) (hash-copy ((second m)))) marks)]
-                        [last-apps (map third marks)])
-                   (set! traces (append traces
-                                        (list (trace-struct exp val num label inspect-stx
-                                                            functions var-tables last-apps)))))]
-                [else
-                 (let ([functions (map first fun-traces)]
-                       [var-tables (map (lambda (m) (hash-copy ((second m)))) fun-traces)]
-                       [last-apps (map third fun-traces)])
-                   (set! traces (append traces 
-                                        (list (trace-struct exp val num label #f functions 
-                                                            var-tables last-apps)))))]))))
+              (set! traces (append traces 
+                                   (list (trace-struct exp val #f "" #f #f #f #f)))))))
         
         (define/public (move-to-frame the-frame-num)
           (set-box! frame-num the-frame-num)
@@ -1141,6 +1135,8 @@
           (set! traces empty)
           (set! trace-counts (make-hasheq))
           (set! trace-frame #f)
+          (set! arg-table #f)
+          (set! def-table #f)
           (set! resume-ch (make-channel))
           (set! suspend-sema (make-semaphore 1))
           (set! in-user-ch (make-channel))
@@ -1548,10 +1544,12 @@
         
         (define/private (update-trace-callback)
           (let ([trace (send (get-current-tab) get-traces)]
-                [frame (send (get-current-tab) get-trace-frame)])
+                [frame (send (get-current-tab) get-trace-frame)]
+                [trace-table (send (get-current-tab) get-trace-table)])
             (if frame
                 (begin
                   (send (send frame get-widget) update-traces trace)
+                  (send (send frame get-widget) update-trace-table trace-table)
                   (unless (send frame is-shown?)
                     (send frame show #t)))
                 (send (get-current-tab) set-trace-frame

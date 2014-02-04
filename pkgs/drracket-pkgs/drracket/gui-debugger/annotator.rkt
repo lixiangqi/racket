@@ -2,7 +2,7 @@
 
   (require (prefix-in kernel: syntax/kerncase)
            gui-debugger/marks
-           "util.rkt"
+           "trace-util.rkt"
            mzlib/etc
            (prefix-in srfi: srfi/1/search)
            (for-syntax scheme/base)
@@ -156,6 +156,8 @@
       
       (define argtable (make-hasheq))
       
+      (define definitions (make-hasheq))
+      
       (define (previous-bindings bound-vars)
         (if (null? bound-vars)
             #'null
@@ -197,6 +199,8 @@
         (kernel:kernel-syntax-case
          stx #f
          [(define-values (var ...) expr)
+          (let ([def-stx (hash-ref stx-table (syntax-position stx) (lambda () stx))])
+            (hash-set! definitions (syntax-e (first (syntax->list #'(var ...)))) def-stx))
           (quasisyntax/loc stx
             (define-values (var ...) #,(annotate #`expr '() #t module-name #f)))]
          [(define-syntaxes (var ...) expr)
@@ -300,16 +304,16 @@
                                      (list (annotate (car bodies) all-bound-vars #t module-name #t))
                                      (cons (annotate (car bodies) all-bound-vars #f module-name #t)
                                            (loop (cdr bodies)))))]
-                   [debug-info-stx (assemble-debug-info new-bound-vars new-bound-vars 'normal #f)])
-              (hash-set! argtable (syntax-position clause) new-bound-vars)
+                   [debug-info-stx (assemble-debug-info new-bound-vars new-bound-vars 'normal #f)]
+                   [function-stx (hash-ref stx-table
+                                           (syntax-position clause)
+                                           (lambda () clause))])
+              (hash-set! argtable function-stx new-bound-vars)
               (with-syntax ([lambda-clause clause])
                 (quasisyntax/loc clause
                   (arg-list
-                   (let ([function-stx (hash-ref #,stx-table 
-                                                 (syntax-position (quote-syntax lambda-clause)) 
-                                                 (lambda () (quote-syntax lambda-clause)))]
-                         [arg-values (map (lambda (x) (#,traced-value-val (x))) (list #,@debug-info-stx))])
-                     (with-continuation-mark 'inspect (cons function-stx arg-values)
+                   (let ([arg-values (map (lambda (x) (#,traced-value-val (x))) (list #,@debug-info-stx))])
+                     (with-continuation-mark 'inspect (cons (quote-syntax #,function-stx) arg-values)
                        (begin
                          #,@new-bodies)))))))]))
 
@@ -351,7 +355,8 @@
              (let ([params (map (lambda (exp)
                                   (annotate exp bound-vars #f module-name lambda?))
                                 (rest (syntax->list #'exprs)))]
-                   [stx-property (syntax-property expr 'inspect)])
+                   [stx-property (syntax-property expr 'inspect)]
+                   [op-name (syntax-e (first (syntax->list #'exprs)))])
                (cond 
                  [stx-property
                   (with-syntax ([to-inspect (third (syntax->list expr))]
@@ -364,9 +369,11 @@
                  [else
                   (with-syntax ([op (first (syntax->list #'exprs))])
                     (quasisyntax/loc expr
-                      (let ([ns (variable-reference->namespace (#%variable-reference))])
-                        (if (namespace-variable-value (syntax-e #'op) #f (lambda () #f) ns)
-                            (#,ap (#,traced-value op (#,dtree 'lff (quote op))) #,@params)
+                      (let ([ns (variable-reference->namespace (#%variable-reference))]
+                            [op-name (syntax-e #'op)])
+                        (if (namespace-variable-value op-name #f (lambda () #f) ns)
+                            ; self-defined function 
+                            (#,ap (#,traced-value op (#,dtree 'lff op-name)) #,@params)
                             ; do not need to keep track of the library functions; no traced form
                             (#,ap op #,@params)))))]))]
             
@@ -374,7 +381,7 @@
                          (syntax->datum expr))])))
         annotated)
       
-      (values (top-level-annotate stx) (hash-map breakpoints (lambda (k v) k)))))
+      (values (top-level-annotate stx) (hash-map breakpoints (lambda (k v) k)) argtable definitions)))
 
   (define (disarm stx) (syntax-disarm stx code-insp))
   (define (rearm old new) (syntax-rearm new old))

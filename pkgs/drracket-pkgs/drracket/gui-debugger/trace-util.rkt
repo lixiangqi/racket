@@ -22,9 +22,10 @@
   (cond 
     [(traced-value? fun)
      (let* ([res (apply (traced-value-val fun) args)]
-            [traced-res (traced-value res (dtree 'app (atree (traced-value-trace fun) 
+            [traced-res (traced-value res (dtree 'app (atree (traced-value-trace fun)
                                                              (map (lambda (a) (when (traced-value? a) (traced-value-trace a))) args)
                                                              (dtree 'lf res))))])
+       
        (if (traced-value? res)
            (traced-value (traced-value-val res)
                          (dtree 'app (atree (traced-value-trace fun) (map traced-value-trace args) (traced-value-trace res))))

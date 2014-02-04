@@ -8,6 +8,7 @@
          "syntax-display.rkt"
          "text.rkt"
          "util.rkt"
+         "../trace-util.rkt"
          images/compile-time
          images/icons/misc
          (for-syntax racket/base
@@ -27,6 +28,8 @@
            [sorted-traces null]
            [indexes null]
            [var-tables (make-hasheq)]
+           [arg-table null]
+           [def-table null]
            [function-calls null]
            [last-app-list null]
            [step 1]
@@ -386,7 +389,7 @@
       (let ([logs (map (lambda (t) 
                          (let ([label (trace-struct-label t)])
                            (if (eq? label "")
-                               (format "~a = ~v\n" (syntax->datum (trace-struct-exp-stx t)) (trace-struct-value t))
+                               (format "~a = ~v\n" (syntax->datum (trace-struct-exp-stx t)) (traced-value-val (trace-struct-value t)))
                                (format "~a: ~a = ~v\n" label (syntax->datum (trace-struct-exp-stx t)) (trace-struct-value t)))))
                        traces)])
         (send log-text set-var-logs logs)
@@ -395,6 +398,10 @@
     (define/public (update-traces t)
       (set! traces t)
       (display-traces))
+    
+    (define/public (update-trace-table p)
+      (set! arg-table (car p))
+      (set! def-table (cdr p)))
     
     (send view-text set-styles-sticky #f)
     (send view-text lock #t)
