@@ -9,10 +9,11 @@
 (provide make-trace-browser
          trace-struct)
 
-(define (make-trace-browser traces fn)
+(define (make-trace-browser traces table fn)
   (define frame (new trace-frame%
                      [filename fn]))
   (send (send frame get-widget) update-traces traces)
+  (send (send frame get-widget) update-trace-table table)
   (send frame show #t)
   frame)
 

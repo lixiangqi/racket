@@ -410,7 +410,7 @@
       (with-unlock view-text
         (send view-text insert text)))
     
-    (define/public (add-syntax i)
+    #;(define/public (add-syntax i)
       (with-unlock view-text
         (let ([stx (list-ref function-calls i)]
               [hi-stxs (if (> (add1 i) limit) null (list (list-ref last-app-list i)))]
@@ -425,6 +425,18 @@
           (when (and (zero? i) (not call?))
             (set! highlight-color "MistyRose"))
           (send/i display display<%> highlight-syntaxes hi-stxs highlight-color)
+          (send display refresh))))
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;
+    (define/public (add-syntax stx arg-values)
+      (with-unlock view-text
+        (let ([arg-stxes (hash-ref arg-table stx (lambda () null))])
+          (define display (print-syntax-to-editor stx view-text
+                                                  (make-hasheq (map cons arg-stxes arg-values))
+                                                  (calculate-columns)
+                                                  (send view-text last-position)))
+          (send view-text insert "\n")
+          (define range (send/i display display<%> get-range))
+          (define offset (send/i display display<%> get-start-position))
           (send display refresh))))
     
     (define/private (code-style text)
@@ -467,15 +479,15 @@
         (send view-panel change-children (lambda (l) (remove* (list slider-panel navigator) l eq?)))
         (set! slider #f)))
     
-    (define/private (update-view-text current-trace)
+    #;(define/private (update-view-text current-trace)
       (cond
         [(null? (trace-struct-funs current-trace))
          (label-view-text "No associated function application\n")]
         [else
-         (if slider
+         #;(if slider
              (send slider-panel delete-child slider)
              (send view-panel change-children (lambda (l) (append l (list slider-panel navigator)))))
-         (let* ([funs (trace-struct-funs current-trace)]
+         #;(let* ([funs (trace-struct-funs current-trace)]
                 [vars (trace-struct-vars current-trace)]
                 [inspect-stx (trace-struct-inspect-stx current-trace)]
                 [apps (append (trace-struct-apps current-trace) (list inspect-stx))])
@@ -500,7 +512,24 @@
                              [parent slider-panel]
                              [style (list 'horizontal 'plain)]
                              [callback (lambda (b e) (set-current-step (send slider get-value)))]))
-           (update-trace-view-forward))]))
+           (update-trace-view-forward))
+         (update-trace-view-forward)]))
+    ;;;;;;;;;;;;;;;;;;;;
+    (define/private (update-view-text current-trace)
+      (erase-all)
+      (let ([story (traced-value-trace (trace-struct-value current-trace))])
+        (cond
+          [(equal? (dtree-label story) 'app)
+           (let ([ftree (atree-ftree (dtree-node story))]
+                 [args (map dtree-node (atree-ptree (dtree-node story)))])
+             (cond
+               [(pair? ftree) (void)]
+               [else
+                (add-syntax (hash-ref def-table (dtree-node ftree)) args)
+                (add-syntax #'2 null)]))]
+          [else
+           (void)])))
+    
     
     (define/private (update-trace-view)
       (erase-all)

@@ -897,7 +897,7 @@
             (when (< count 50) ; to modify
               (hash-set! trace-counts pos (add1 count))
               (set! traces (append traces 
-                                   (list (trace-struct exp val #f "" #f #f #f #f)))))))
+                                   (list (trace-struct exp val #f "" #f #f #f null)))))))
         
         (define/public (move-to-frame the-frame-num)
           (set-box! frame-num the-frame-num)
@@ -1549,11 +1549,11 @@
             (if frame
                 (begin
                   (send (send frame get-widget) update-traces trace)
-                  (send (send frame get-widget) update-trace-table trace-table)
                   (unless (send frame is-shown?)
                     (send frame show #t)))
                 (send (get-current-tab) set-trace-frame
                       (make-trace-browser trace
+                                          trace-table
                                           (send (get-definitions-text) get-filename/untitled-name))))))
 
         (define trace-button

@@ -200,7 +200,9 @@
          stx #f
          [(define-values (var ...) expr)
           (let ([def-stx (hash-ref stx-table (syntax-position stx) (lambda () stx))])
-            (hash-set! definitions (syntax-e (first (syntax->list #'(var ...)))) def-stx))
+            (printf "module=~a\n" (syntax-source-module stx))
+            (printf "stx-table=~a\n" (syntax-source-module (first (hash-values stx-table))))
+            (hash-set! definitions (syntax-e (first (syntax->list #'(var ...)))) (quasisyntax/loc stx #,def-stx)))
           (quasisyntax/loc stx
             (define-values (var ...) #,(annotate #`expr '() #t module-name #f)))]
          [(define-syntaxes (var ...) expr)
