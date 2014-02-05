@@ -428,7 +428,7 @@
           (send/i display display<%> highlight-syntaxes hi-stxs highlight-color)
           (send display refresh))))
     ;;;;;;;;;;;;;;;;;;;;;;;;;;
-    (define/public (add-syntax stx arg-values)
+    (define/public (add-syntax stx arg-values underline?)
       (with-unlock view-text
         (let ([arg-stxes (hash-ref arg-table stx (lambda () null))])
           (define display (print-syntax-to-editor stx view-text
@@ -438,6 +438,10 @@
           (send view-text insert "\n")
           (define range (send/i display display<%> get-range))
           (define offset (send/i display display<%> get-start-position))
+          
+          (when underline?
+            (send/i display display<%> underline-syntax stx))
+          
           (send display refresh))))
     
     (define/private (code-style text)
@@ -539,7 +543,7 @@
                 (add-text "= ")
                 ; add syntax property to distinguish
                 ; underline
-                (add-syntax (quasisyntax #,res) null)]))]
+                (add-syntax (syntax-property (quasisyntax #,res) 'has-history #t) null)]))]
           [else
            (void)])))
     

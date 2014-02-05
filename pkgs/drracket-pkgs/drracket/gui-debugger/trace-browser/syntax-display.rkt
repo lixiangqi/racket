@@ -144,6 +144,8 @@
             (set! end-position (+ end-position offset))))))
     
     (define/private (apply-selection-callback selected-syntax)
+      (when selected-syntax
+      (printf "stx=~a, property=~a\n" selected-syntax (syntax-property selected-syntax 'has-history)))
       (when (identifier? selected-syntax)
         (let ([found (member selected-syntax (hash-keys var-table) free-identifier=?)])
           (when found
