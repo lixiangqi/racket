@@ -200,8 +200,6 @@
          stx #f
          [(define-values (var ...) expr)
           (let ([def-stx (hash-ref stx-table (syntax-position stx) (lambda () stx))])
-            (printf "module=~a\n" (syntax-source-module stx))
-            (printf "stx-table=~a\n" (syntax-source-module (first (hash-values stx-table))))
             (hash-set! definitions (syntax-e (first (syntax->list #'(var ...)))) (quasisyntax/loc stx #,def-stx)))
           (quasisyntax/loc stx
             (define-values (var ...) #,(annotate #`expr '() #t module-name #f)))]
@@ -309,8 +307,10 @@
                    [debug-info-stx (assemble-debug-info new-bound-vars new-bound-vars 'normal #f)]
                    [function-stx (hash-ref stx-table
                                            (syntax-position clause)
-                                           (lambda () clause))])
-              (hash-set! argtable function-stx new-bound-vars)
+                                           (lambda () clause))]
+                   [arg-stxes (map (lambda (a) 
+                                     (hash-ref stx-table (syntax-position a) (lambda () a))) new-bound-vars)])
+              (hash-set! argtable function-stx arg-stxes)
               (with-syntax ([lambda-clause clause])
                 (quasisyntax/loc clause
                   (arg-list

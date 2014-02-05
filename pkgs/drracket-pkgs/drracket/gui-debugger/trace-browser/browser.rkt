@@ -517,16 +517,18 @@
     ;;;;;;;;;;;;;;;;;;;;
     (define/private (update-view-text current-trace)
       (erase-all)
-      (let ([story (traced-value-trace (trace-struct-value current-trace))])
+      (let* ([story (traced-value-trace (trace-struct-value current-trace))]
+             [node (dtree-node story)])
         (cond
           [(equal? (dtree-label story) 'app)
-           (let ([ftree (atree-ftree (dtree-node story))]
-                 [args (map dtree-node (atree-ptree (dtree-node story)))])
+           (let ([ftree (atree-ftree node)]
+                 [args (map dtree-node (atree-ptree node))]
+                 [res (dtree-node (atree-rtree node))])
              (cond
                [(pair? ftree) (void)]
                [else
                 (add-syntax (hash-ref def-table (dtree-node ftree)) args)
-                (add-syntax #'2 null)]))]
+                #;(add-text (format "= ~v\n" res))]))]
           [else
            (void)])))
     

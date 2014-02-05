@@ -125,48 +125,35 @@
           (for ([delta (in-list deltas)])
             (restyle-range stx r delta #t)))))
     
-    (define/private (display-id-value stx displayed?)
-      (void)
-      #;(let* ([id-val (hash-ref var-table stx (lambda () 'unfound))]
-             [value (if displayed?
+    (define/private (display-id-value stx val displayed?)
+      (let* ([value (if displayed?
                         (syntax->datum stx) 
-                        id-val)]
+                        val)]
              [result (format "~a" value)])
-        ;(printf "stx=~a\n" stx)
-        ;(printf "var-table=~a, id-val=~a\n" var-table id-val)
         (if displayed?
             (hash-set! values-displayed stx #f)
             (hash-set! values-displayed stx #t))
-        (unless (eq? id-val 'unfound)
-          (for ([r (in-list (send/i range range<%> get-ranges stx))])
-            (let* ([start (relative->text-position (car r))]
-                   [end (relative->text-position (cdr r))]
-                   [offset (+ (string-length result) (- start end))])
-              (with-unlock text
-                (send text delete start end)
-                (send text insert result start))
-              (send range shift-range start end offset start-position)
-              (set! end-position (+ end-position offset)))))))
+        (for ([r (in-list (send/i range range<%> get-ranges stx))])
+          (let* ([start (relative->text-position (car r))]
+                 [end (relative->text-position (cdr r))]
+                 [offset (+ (string-length result) (- start end))])
+            (with-unlock text
+              (send text delete start end)
+              (send text insert result start))
+            (send range shift-range start end offset start-position)
+            (set! end-position (+ end-position offset))))))
     
     (define/private (apply-selection-callback selected-syntax)
       (when (identifier? selected-syntax)
-        ;(printf "keys=~a, selected-syntax=~a\n" (bound-identifier=? (car var-table) selected-syntax) selected-syntax)
-        ;(printf "member=~a\n" (member selected-syntax var-table bound-identifier=?))
-        (printf "selected stx: position=~a, span=~a, original=~a, source-module=~a\n"
-                (syntax-position selected-syntax) (syntax-span selected-syntax) (syntax-original? selected-syntax) (syntax-source-module selected-syntax))
-        
-         (printf "hash stx: position=~a, span=~a, original=~a, source-module=~a\n"
-                (syntax-position (car (hash-keys var-table))) (syntax-span (car (hash-keys var-table))) (syntax-original? (car (hash-keys var-table))) (syntax-source-module (car (hash-keys var-table))))
-        
-        (printf "hash=~a\n" (bound-identifier=? (car (hash-keys var-table)) selected-syntax 0))
-        (printf "hash=~a\n" (bound-identifier=? (car (hash-keys var-table)) selected-syntax 1))
-        (for ([id (in-list (send/i range range<%> get-identifier-list))])
-          (when (bound-identifier=? selected-syntax id)
-            ;(printf "s-id=~a, id=~a\n" (syntax? (car (hash-keys var-table))) id)
-            (display-id-value id (hash-ref values-displayed id #f))
-            (for ([r (in-list (send/i range range<%> get-ranges id))])
-              (restyle-range id r (highlight-style-delta "yellow") #t))))
-        (add-clickbacks))
+        (let ([var (car (member selected-syntax (hash-keys var-table) free-identifier=?))])
+          (when var
+            (let ([val (hash-ref var-table var)])
+              (for ([id (in-list (send/i range range<%> get-identifier-list))])
+                (when (free-identifier=? selected-syntax id)
+                  (display-id-value id val (hash-ref values-displayed id #f))
+                  (for ([r (in-list (send/i range range<%> get-ranges id))])
+                    (restyle-range id r (highlight-style-delta "yellow") #t))))
+              (add-clickbacks)))))
       (for ([r (in-list (send/i range range<%> get-ranges selected-syntax))])
         (restyle-range selected-syntax r select-d #t)))
     
