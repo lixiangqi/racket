@@ -145,9 +145,9 @@
     
     (define/private (apply-selection-callback selected-syntax)
       (when (identifier? selected-syntax)
-        (let ([var (car (member selected-syntax (hash-keys var-table) free-identifier=?))])
-          (when var
-            (let ([val (hash-ref var-table var)])
+        (let ([found (member selected-syntax (hash-keys var-table) free-identifier=?)])
+          (when found
+            (let ([val (hash-ref var-table (car found))])
               (for ([id (in-list (send/i range range<%> get-identifier-list))])
                 (when (free-identifier=? selected-syntax id)
                   (display-id-value id val (hash-ref values-displayed id #f))

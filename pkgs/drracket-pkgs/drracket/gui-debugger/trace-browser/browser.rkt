@@ -328,7 +328,8 @@
       (set! status-msg (new message% [label ""] [parent navigator] [stretchable-width #t]))
       (send view-panel change-children (lambda (l) (remove* (list slider-panel navigator) l eq?))))
                
-    (define bold-sd (make-object style-delta% 'change-weight 'bold))           
+    (define bold-sd (make-object style-delta% 'change-weight 'bold))   
+    (define underline-sd (make-object style-delta% 'change-underline #t))
        
     (define/private (navigate-previous)
       (set! step (sub1 step))
@@ -515,6 +516,13 @@
            (update-trace-view-forward))
          (update-trace-view-forward)]))
     ;;;;;;;;;;;;;;;;;;;;
+    (define/private (get-trace-result tree)
+      (case (dtree-label tree)
+        ['app 
+         (dtree-node (atree-rtree (dtree-node tree)))]
+        ['lf
+         (dtree-node (dtree-node tree))]))
+    
     (define/private (update-view-text current-trace)
       (erase-all)
       (let* ([story (traced-value-trace (trace-struct-value current-trace))]
@@ -523,12 +531,15 @@
           [(equal? (dtree-label story) 'app)
            (let ([ftree (atree-ftree node)]
                  [args (map dtree-node (atree-ptree node))]
-                 [res (dtree-node (atree-rtree node))])
+                 [res (get-trace-result (atree-rtree node))])
              (cond
                [(pair? ftree) (void)]
                [else
                 (add-syntax (hash-ref def-table (dtree-node ftree)) args)
-                #;(add-text (format "= ~v\n" res))]))]
+                (add-text "= ")
+                ; add syntax property to distinguish
+                ; underline
+                (add-syntax (quasisyntax #,res) null)]))]
           [else
            (void)])))
     
