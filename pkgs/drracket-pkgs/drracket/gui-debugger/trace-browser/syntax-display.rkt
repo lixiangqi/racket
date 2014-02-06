@@ -134,7 +134,7 @@
     ;; apply-highlighting : -> void
     (define/private (apply-highlight)
       (for ([(stx deltas) (in-hash extra-styles)])
-        (for ([r (in-list (send/i range range<%> get-ranges stx))])
+        (for ([r (in-list (send/i range range<%> get-range-by-pos (syntax-position stx)))])
           (for ([delta (in-list deltas)])
             (restyle-range stx r delta #t)))))
     

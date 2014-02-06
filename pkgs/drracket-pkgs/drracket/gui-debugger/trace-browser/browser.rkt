@@ -427,9 +427,9 @@
           (send/i display display<%> highlight-syntaxes hi-stxs highlight-color)
           (send display refresh))))
     ;;;;;;;;;;;;;;;;;;;;;;;;;;
-    (define/public (add-syntax stx arg-values underline?)
+    (define/public (add-syntax stx hi-stxes arg-values underline?)
       (with-unlock view-text
-        (let ([arg-stxes (hash-ref arg-table stx (lambda () null))])
+        (let ([arg-stxes (hash-ref arg-table (syntax-position stx) (lambda () null))])
           (define display (print-syntax-to-editor stx view-text this
                                                   (make-hasheq (map cons arg-stxes arg-values))
                                                   (calculate-columns)
@@ -437,7 +437,8 @@
           (send view-text insert "\n")
           (define range (send/i display display<%> get-range))
           (define offset (send/i display display<%> get-start-position))
-          
+          (when hi-stxes
+            (send/i display display<%> highlight-syntaxes hi-stxes "MistyRose"))
           (when underline?
             (send/i display display<%> underline-syntax stx))
           
@@ -520,34 +521,28 @@
          (update-trace-view-forward)]))
     ;;;;;;;;;;;;;;;;;;;;
     (define/private (get-trace-result tree)
-      (printf "**************\n")
-      (printf "get-trace-result=~a\n" tree)
-      (printf "**************\n")
-              
-      #;(case (dtree-label tree)
+      (case (dtree-label tree)
         ['app 
-         (dtree-node (atree-rtree (dtree-node tree)))]
-        ['lf
-         (dtree-node (dtree-node tree))]))
+         (dtree-node (dtree-rtree tree))]
+        ['lf 
+         (dtree-node tree)]))
  
     (define/public (update-view-text current-trace)
       (erase-all)
-      (printf "current-trace=~a\n" current-trace)
-      (printf "-------------------\n")
       (let ([node (dtree-node current-trace)])
         (cond
           [(equal? (dtree-label current-trace) 'app)
-           (let ([ftree (atree-ftree node)]
+           (let ([fnode (dtree-node (atree-ftree node))]
                  [args (map dtree-node (atree-ptree node))]
-                 #;[res (get-trace-result (dtree-rtree current-trace))])
-             (printf "result tree=~a\n" (dtree-rtree current-trace))
-             #;(cond
-               [(pair? ftree) (void)]
+                 [res (get-trace-result (dtree-rtree current-trace))])
+             (cond
+               [(pair? fnode)
+                (add-syntax (first (cdr fnode)) (list (third (cdr fnode))) (second (cdr fnode)) #f)]
                [else
-                (add-syntax (hash-ref def-table (dtree-node ftree)) args #f)
+                (add-syntax (hash-ref def-table fnode) #f args #f)
                 (add-text "= ")
-                (add-syntax (syntax-property (quasisyntax #,res) 'has-history (atree-rtree node)) 
-                            null #t)]))]
+                (add-syntax (syntax-property (quasisyntax #,res) 'has-history (dtree-rtree current-trace)) 
+                            #f null #t)]))]
           [else
            (void)])))
     

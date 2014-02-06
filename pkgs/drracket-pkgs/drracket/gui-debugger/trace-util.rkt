@@ -18,7 +18,7 @@
             (to-track? (rest lst))))))
 
 ;; passes in function name and traced version of arguments
-(define (ap fun . args)
+(define (ap fun exp . args)
   (cond 
     [(traced-value? fun)
      (let* ([res (apply (traced-value-val fun) args)]
@@ -33,7 +33,7 @@
     [else
      (let* ([params (map (lambda (a) (if (traced-value? a) (traced-value-val a) a)) args)]
             [res (apply fun params)]
-            [context (continuation-mark-set-first #f 'inspect null)])
+            [context (append (continuation-mark-set-first #f 'inspect null) (list exp))])
        (if (to-track? args)
            (traced-value res (dtree 'app (atree (dtree 'lff (cons fun context) #f) (map (lambda (a) (when (traced-value? a) (traced-value-trace a))) args))
                                     (dtree 'lf res #f)))

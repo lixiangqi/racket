@@ -128,10 +128,18 @@
     (super-new)
 
     (define ranges (hash-copy (send range-builder range:get-ranges)))
+    
+    (define pos-ranges (make-hasheq (map (lambda (k)
+                                           (cons (syntax-position k)
+                                                 (hash-ref ranges k)))
+                                         (hash-keys ranges))))
     (define subs (reverse (send range-builder get-subs)))
-
+    
     (define/public (get-ranges obj)
       (hash-ref ranges obj null))
+    
+    (define/public (get-range-by-pos pos)
+      (hash-ref pos-ranges pos null))
 
     (define/public (get-treeranges)
       subs)

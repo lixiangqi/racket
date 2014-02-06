@@ -158,6 +158,9 @@
       
       (define definitions (make-hasheq))
       
+      (define (lookup-stx-table stx)
+        (hash-ref stx-table (syntax-position stx) (lambda () stx)))
+      
       (define (previous-bindings bound-vars)
         (if (null? bound-vars)
             #'null
@@ -199,7 +202,7 @@
         (kernel:kernel-syntax-case
          stx #f
          [(define-values (var ...) expr)
-          (let ([def-stx (hash-ref stx-table (syntax-position stx) (lambda () stx))])
+          (let ([def-stx (lookup-stx-table stx)])
             (hash-set! definitions (syntax-e (first (syntax->list #'(var ...)))) (quasisyntax/loc stx #,def-stx)))
           (quasisyntax/loc stx
             (define-values (var ...) #,(annotate #`expr '() #t module-name #f)))]
@@ -305,19 +308,15 @@
                                      (cons (annotate (car bodies) all-bound-vars #f module-name #t)
                                            (loop (cdr bodies)))))]
                    [debug-info-stx (assemble-debug-info new-bound-vars new-bound-vars 'normal #f)]
-                   [function-stx (hash-ref stx-table
-                                           (syntax-position clause)
-                                           (lambda () clause))]
-                   [arg-stxes (map (lambda (a) 
-                                     (hash-ref stx-table (syntax-position a) (lambda () a))) new-bound-vars)])
-              (hash-set! argtable function-stx arg-stxes)
-              (with-syntax ([lambda-clause clause])
-                (quasisyntax/loc clause
-                  (arg-list
-                   (let ([arg-values (map (lambda (x) (#,traced-value-val (x))) (list #,@debug-info-stx))])
-                     (with-continuation-mark 'inspect (cons (quote-syntax #,function-stx) arg-values)
-                       (begin
-                         #,@new-bodies)))))))]))
+                   [function-stx (lookup-stx-table clause)]
+                   [arg-stxes (map (lambda (a) (lookup-stx-table a)) new-bound-vars)])
+              (hash-set! argtable (syntax-position function-stx) arg-stxes)
+              (quasisyntax/loc clause
+                (arg-list
+                 (let ([arg-values (map (lambda (x) (#,traced-value-val (x))) (list #,@debug-info-stx))])
+                   (with-continuation-mark 'inspect (list (quote-syntax #,function-stx) arg-values)
+                     (begin
+                       #,@new-bodies))))))]))
 
         (define annotated
           (rearm
@@ -358,26 +357,28 @@
                                   (annotate exp bound-vars #f module-name lambda?))
                                 (rest (syntax->list #'exprs)))]
                    [stx-property (syntax-property expr 'inspect)]
-                   [op-name (syntax-e (first (syntax->list #'exprs)))])
+                   [op-name (syntax-e (first (syntax->list #'exprs)))]
+                   [raw-expr (lookup-stx-table #'exprs)])
                (cond 
                  [stx-property
                   (with-syntax ([to-inspect (third (syntax->list expr))]
                                 [op (first (syntax->list #'exprs))])
                     (quasisyntax/loc expr
-                      (let ([to-inspect-stx (hash-ref #,stx-table (syntax-position #'to-inspect) #'to-inspect)])
+                      (let ([to-inspect-stx (#,lookup-stx-table #'to-inspect)])
                         (#%plain-app #,record-log to-inspect-stx
                                      #,@params
                                      #f #f #f null #f))))]
                  [else
-                  (with-syntax ([op (first (syntax->list #'exprs))])
+                  (with-syntax ([op (first (syntax->list #'exprs))]
+                                [raw-expr raw-expr])
                     (quasisyntax/loc expr
                       (let ([ns (variable-reference->namespace (#%variable-reference))]
                             [op-name (syntax-e #'op)])
                         (if (namespace-variable-value op-name #f (lambda () #f) ns)
                             ; self-defined function 
-                            (#,ap (#,traced-value op (#,dtree 'lff op-name #f)) #,@params)
+                            (#,ap (#,traced-value op (#,dtree 'lff op-name #f)) #f #,@params)
                             ; do not need to keep track of the library functions; no traced form
-                            (#,ap op #,@params)))))]))]
+                            (#,ap op #'raw-expr #,@params)))))]))]
             
             [else (error 'expr-syntax-object-iterator "unknown expr: ~a"
                          (syntax->datum expr))])))

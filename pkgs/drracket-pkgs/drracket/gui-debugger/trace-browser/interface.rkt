@@ -70,7 +70,7 @@
 (define-interface range<%> ()
   (;; get-ranges : datum -> (list-of (cons number number))
    get-ranges
-
+   get-range-by-pos
    ;; get-treeranges : -> (listof TreeRange)
    get-treeranges
 
