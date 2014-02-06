@@ -195,10 +195,10 @@
                        (if (null? filter-lines)
                            (when (< line (length var-logs))
                              (move-to-view line)
-                             (update-view-text (list-ref traces line)))
+                             (update-view-text (traced-value-trace (trace-struct-value (list-ref traces line)))))
                            (when (< line (length filter-lines))
                              (move-to-view line)
-                             (update-view-text (list-ref traces (list-ref filter-lines line)))))])]))))))
+                             (update-view-text (traced-value-trace (trace-struct-value (list-ref traces (list-ref filter-lines line)))))))])]))))))
                  
     (define search-text
       (new (class text%
@@ -328,8 +328,7 @@
       (set! status-msg (new message% [label ""] [parent navigator] [stretchable-width #t]))
       (send view-panel change-children (lambda (l) (remove* (list slider-panel navigator) l eq?))))
                
-    (define bold-sd (make-object style-delta% 'change-weight 'bold))   
-    (define underline-sd (make-object style-delta% 'change-underline #t))
+    (define bold-sd (make-object style-delta% 'change-weight 'bold))
        
     (define/private (navigate-previous)
       (set! step (sub1 step))
@@ -431,7 +430,7 @@
     (define/public (add-syntax stx arg-values underline?)
       (with-unlock view-text
         (let ([arg-stxes (hash-ref arg-table stx (lambda () null))])
-          (define display (print-syntax-to-editor stx view-text
+          (define display (print-syntax-to-editor stx view-text this
                                                   (make-hasheq (map cons arg-stxes arg-values))
                                                   (calculate-columns)
                                                   (send view-text last-position)))
@@ -521,29 +520,34 @@
          (update-trace-view-forward)]))
     ;;;;;;;;;;;;;;;;;;;;
     (define/private (get-trace-result tree)
-      (case (dtree-label tree)
+      (printf "**************\n")
+      (printf "get-trace-result=~a\n" tree)
+      (printf "**************\n")
+              
+      #;(case (dtree-label tree)
         ['app 
          (dtree-node (atree-rtree (dtree-node tree)))]
         ['lf
          (dtree-node (dtree-node tree))]))
-    
-    (define/private (update-view-text current-trace)
+ 
+    (define/public (update-view-text current-trace)
       (erase-all)
-      (let* ([story (traced-value-trace (trace-struct-value current-trace))]
-             [node (dtree-node story)])
+      (printf "current-trace=~a\n" current-trace)
+      (printf "-------------------\n")
+      (let ([node (dtree-node current-trace)])
         (cond
-          [(equal? (dtree-label story) 'app)
+          [(equal? (dtree-label current-trace) 'app)
            (let ([ftree (atree-ftree node)]
                  [args (map dtree-node (atree-ptree node))]
-                 [res (get-trace-result (atree-rtree node))])
-             (cond
+                 #;[res (get-trace-result (dtree-rtree current-trace))])
+             (printf "result tree=~a\n" (dtree-rtree current-trace))
+             #;(cond
                [(pair? ftree) (void)]
                [else
-                (add-syntax (hash-ref def-table (dtree-node ftree)) args)
+                (add-syntax (hash-ref def-table (dtree-node ftree)) args #f)
                 (add-text "= ")
-                ; add syntax property to distinguish
-                ; underline
-                (add-syntax (syntax-property (quasisyntax #,res) 'has-history #t) null)]))]
+                (add-syntax (syntax-property (quasisyntax #,res) 'has-history (atree-rtree node)) 
+                            null #t)]))]
           [else
            (void)])))
     

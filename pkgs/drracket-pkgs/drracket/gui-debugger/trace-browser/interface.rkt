@@ -56,7 +56,7 @@
 
    ;; highlight-syntaxes : (list-of syntax) color -> void
    highlight-syntaxes
-
+   underline-syntax
    ;; get-start-position : -> number
    get-start-position
 

@@ -351,7 +351,7 @@
                (quasisyntax/loc expr (begin #,@(traverse (syntax->list #'bodies)))))]
             
             [(quote datum)
-             (quasisyntax/loc expr (#,traced-value datum (#,dtree 'lf datum)))]
+             (quasisyntax/loc expr (#,traced-value datum (#,dtree 'lf datum #f)))]
             
             [(#%plain-app . exprs)
              (let ([params (map (lambda (exp)
@@ -375,7 +375,7 @@
                             [op-name (syntax-e #'op)])
                         (if (namespace-variable-value op-name #f (lambda () #f) ns)
                             ; self-defined function 
-                            (#,ap (#,traced-value op (#,dtree 'lff op-name)) #,@params)
+                            (#,ap (#,traced-value op (#,dtree 'lff op-name #f)) #,@params)
                             ; do not need to keep track of the library functions; no traced form
                             (#,ap op #,@params)))))]))]
             

@@ -16,7 +16,7 @@
 ;; print-syntax-to-editor : syntax text number number
 ;;                       -> display<%>
 ;; Note: must call display<%>::refresh to finish styling.
-(define (print-syntax-to-editor stx text var-table columns
+(define (print-syntax-to-editor stx text browser var-table columns
                                 [insertion-point (send text last-position)])
   (define output-port (open-output-string/count-lines))
   (define range (pretty-print-syntax stx 
@@ -29,6 +29,7 @@
      (send text insert output-length output-string insertion-point))
     (new display%
          (text text)
+         (browser browser)
          (var-table var-table)
          (range range)
          (start-position insertion-point)
@@ -40,6 +41,7 @@
   (class* object% (display<%>)
     (init-field/i [range range<%>])
     (init-field text
+                browser
                 var-table
                 start-position
                 end-position)
@@ -48,6 +50,8 @@
 
     (define base-style
       (send (send text get-style-list) find-named-style (editor:get-default-color-style-name)))
+    
+    (define on-next-refresh null)
 
     ;; extra-styles : hash[stx => (listof style-delta)]
     ;; Styles to be re-applied on every refresh.
@@ -92,6 +96,11 @@
                      (relative->text-position (cdr r))))))
          (set! to-undo-syntaxes null))
         (uninterruptible
+         (for ([stx+delta (in-list on-next-refresh)])
+           (for ([r (in-list (send/i range range<%> get-ranges (car stx+delta)))])
+             (restyle-range (car stx+delta) r (cdr stx+delta) #f)))
+         (set! on-next-refresh null))
+        (uninterruptible
          (apply-highlight))
         (let ([selected-syntax
                (send/i controller selection-manager<%>
@@ -114,6 +123,10 @@
         (for ([stx (in-list stxs)])
           (hash-set! extra-styles stx
                      (cons delta (hash-ref extra-styles stx null))))))
+    
+    (define/public (underline-syntax stx)
+      (set! on-next-refresh
+            (cons (cons stx underline-d) on-next-refresh)))
     
     ;; Secondary Styling
     ;; May change in response to user actions
@@ -144,8 +157,9 @@
             (set! end-position (+ end-position offset))))))
     
     (define/private (apply-selection-callback selected-syntax)
-      (when selected-syntax
-      (printf "stx=~a, property=~a\n" selected-syntax (syntax-property selected-syntax 'has-history)))
+      (let ([stx-trace (and selected-syntax (syntax-property selected-syntax 'has-history))])
+        (when stx-trace
+          (send browser update-view-text stx-trace)))
       (when (identifier? selected-syntax)
         (let ([found (member selected-syntax (hash-keys var-table) free-identifier=?)])
           (when found
@@ -255,6 +269,9 @@
 
 (define select-d
   (make-object style-delta% 'change-weight 'bold))
+
+(define underline-d
+  (make-object style-delta% 'change-underline #t))
 
 (define (highlight-style-delta color)
   (let ([sd (new style-delta%)])
