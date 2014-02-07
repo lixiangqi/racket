@@ -440,10 +440,10 @@
             (send/i display display<%> highlight-syntaxes hi-stxes "MistyRose"))
           (when underline?
             (send/i display display<%> underline-syntax stx))
-          (for ([i (in-range (length arg-values))]
-                [a arg-values])
+          (for ([a arg-values]
+                [s arg-stxes])
             (when (and (dtree? a) (equal? (dtree-label a) 'app))
-              (send/i display display<%> underline-syntax (list-ref arg-stxes i))))
+              (send/i display display<%> underline-syntax s)))
           (send display refresh))))
     
     (define/private (code-style text)

@@ -139,40 +139,27 @@
           (for ([delta (in-list deltas)])
             (restyle-range stx r delta #t)))))
     
-    (define/private (display-id-value stx val displayed?)
-      (let* ([value (if displayed?
-                        (syntax->datum stx) 
-                        val)]
-             [result (format "~a" value)])
-        (if displayed?
-            (hash-set! values-displayed stx #f)
-            (hash-set! values-displayed stx #t))
-        (for ([r (in-list (send/i range range<%> get-ranges stx))])
-          (let* ([start (relative->text-position (car r))]
-                 [end (relative->text-position (cdr r))]
-                 [offset (+ (string-length result) (- start end))])
-            (with-unlock text
-              (send text delete start end)
-              (send text insert result start))
-            (send range shift-range start end offset start-position)
-            (set! end-position (+ end-position offset))))))
-    
-    #;(define/private (apply-selection-callback selected-syntax)
-      (let ([stx-trace (and selected-syntax (syntax-property selected-syntax 'has-history))])
-        (when stx-trace
-          (send browser update-view-text stx-trace)))
-      (when (identifier? selected-syntax)
-        (let ([found (member selected-syntax (hash-keys var-table) free-identifier=?)])
-          (when found
-            (let ([val (hash-ref var-table (car found))])
-              (for ([id (in-list (send/i range range<%> get-identifier-list))])
-                (when (free-identifier=? selected-syntax id)
-                  (display-id-value id val (hash-ref values-displayed id #f))
-                  (for ([r (in-list (send/i range range<%> get-ranges id))])
-                    (restyle-range id r (highlight-style-delta "yellow") #t))))
-              (add-clickbacks)))))
-      (for ([r (in-list (send/i range range<%> get-ranges selected-syntax))])
-        (restyle-range selected-syntax r select-d #t)))
+    (define/private (display-id-value stx raw-val displayed?)
+      (cond
+        [displayed? 
+         (hash-set! values-displayed stx #f)
+         (send browser update-view-text raw-val)]
+        [else
+         (hash-set! values-displayed stx #t)
+         (let* ([value (if displayed?
+                           (syntax->datum stx) 
+                           (if (dtree? raw-val) (send browser get-trace-result raw-val) raw-val))]
+                [result (format "~a" value)])
+           (for ([r (in-list (send/i range range<%> get-ranges stx))])
+             (let* ([start (relative->text-position (car r))]
+                    [end (relative->text-position (cdr r))]
+                    [offset (+ (string-length result) (- start end))])
+               (with-unlock text
+                 (send text delete start end)
+                 (send text insert result start)
+                 (send text change-style underline-d start end))
+               (send range shift-range start end offset start-position)
+               (set! end-position (+ end-position offset)))))]))
     
     (define/private (apply-selection-callback selected-syntax)
       (let ([stx-trace (and selected-syntax (syntax-property selected-syntax 'has-history))])
@@ -181,11 +168,10 @@
       (when (identifier? selected-syntax)
         (let ([found (member selected-syntax (hash-keys var-table) free-identifier=?)])
           (when found
-             
-            (let ([val (hash-ref var-table (car found))])
+            (let* ([raw-val (hash-ref var-table (car found))])
               (for ([id (in-list (send/i range range<%> get-identifier-list))])
                 (when (free-identifier=? selected-syntax id)
-                  (display-id-value id val (hash-ref values-displayed id #f))
+                  (display-id-value id raw-val (hash-ref values-displayed id #f))
                   (for ([r (in-list (send/i range range<%> get-ranges id))])
                     (restyle-range id r (highlight-style-delta "yellow") #t))))
               (add-clickbacks)))))
