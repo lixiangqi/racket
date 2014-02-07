@@ -7,7 +7,8 @@
          "pretty-printer.rkt"
          "interface.rkt"
          "util.rkt"
-         "controller.rkt")
+         "controller.rkt"
+         "../trace-util.rkt")
 (provide print-syntax-to-editor)
 
 (define-syntax-rule (uninterruptible e ...)
@@ -156,14 +157,31 @@
             (send range shift-range start end offset start-position)
             (set! end-position (+ end-position offset))))))
     
-    (define/private (apply-selection-callback selected-syntax)
+    #;(define/private (apply-selection-callback selected-syntax)
       (let ([stx-trace (and selected-syntax (syntax-property selected-syntax 'has-history))])
         (when stx-trace
-          ;(printf "selected-syntax=~a, stx-trace=~a\n" selected-syntax stx-trace)
           (send browser update-view-text stx-trace)))
       (when (identifier? selected-syntax)
         (let ([found (member selected-syntax (hash-keys var-table) free-identifier=?)])
           (when found
+            (let ([val (hash-ref var-table (car found))])
+              (for ([id (in-list (send/i range range<%> get-identifier-list))])
+                (when (free-identifier=? selected-syntax id)
+                  (display-id-value id val (hash-ref values-displayed id #f))
+                  (for ([r (in-list (send/i range range<%> get-ranges id))])
+                    (restyle-range id r (highlight-style-delta "yellow") #t))))
+              (add-clickbacks)))))
+      (for ([r (in-list (send/i range range<%> get-ranges selected-syntax))])
+        (restyle-range selected-syntax r select-d #t)))
+    
+    (define/private (apply-selection-callback selected-syntax)
+      (let ([stx-trace (and selected-syntax (syntax-property selected-syntax 'has-history))])
+        (when stx-trace
+          (send browser update-view-text stx-trace)))
+      (when (identifier? selected-syntax)
+        (let ([found (member selected-syntax (hash-keys var-table) free-identifier=?)])
+          (when found
+             
             (let ([val (hash-ref var-table (car found))])
               (for ([id (in-list (send/i range range<%> get-identifier-list))])
                 (when (free-identifier=? selected-syntax id)

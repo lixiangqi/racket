@@ -434,14 +434,16 @@
                                                   (make-hasheq (map cons arg-stxes arg-values))
                                                   (calculate-columns)
                                                   (send view-text last-position)))
-          (send view-text insert "\n")
           (define range (send/i display display<%> get-range))
           (define offset (send/i display display<%> get-start-position))
           (when hi-stxes
             (send/i display display<%> highlight-syntaxes hi-stxes "MistyRose"))
           (when underline?
             (send/i display display<%> underline-syntax stx))
-          
+          (for ([i (in-range (length arg-values))]
+                [a arg-values])
+            (when (and (dtree? a) (equal? (dtree-label a) 'app))
+              (send/i display display<%> underline-syntax (list-ref arg-stxes i))))
           (send display refresh))))
     
     (define/private (code-style text)
@@ -520,10 +522,13 @@
            (update-trace-view-forward))
          (update-trace-view-forward)]))
     ;;;;;;;;;;;;;;;;;;;;
-    (define/private (get-trace-result tree)
+    (define/public (get-trace-result tree)
       (case (dtree-label tree)
         ['app 
-         (dtree-node (dtree-rtree tree))]
+         (let ([res (dtree-rtree tree)])
+           (if (dtree? res)
+               (get-trace-result res)
+               (dtree-node res)))]
         ['lf 
          (dtree-node tree)]))
  
@@ -537,16 +542,25 @@
                  [res (get-trace-result (dtree-rtree current-trace))])
              (cond
                [(pair? fnode)
-                ;(printf "current=~a\n" current-trace)
                 (add-syntax (first (cdr fnode)) (list (third (cdr fnode))) (second (cdr fnode)) #f)
-                (printf "op=~a\n" (car fnode))
-                (printf "args=~a\n" (map get-trace-result (atree-ptree node))) 
+                
+                (add-separator)
+                (add-text "(")
+                (add-syntax (quasisyntax #,(car fnode)) #f null #f)
+                (add-text " ")
+                (map (lambda (t) 
+                       (add-syntax (syntax-property (quasisyntax #,(get-trace-result t)) 'has-history t)
+                                   #f null (equal? (dtree-label t) 'app))
+                       (add-text " ")) (atree-ptree node))
+                (add-text ")")
                 ]
                [else
-                (add-syntax (hash-ref def-table fnode) #f args #f)
+                ;(printf "arg-tree = ~a\n" (atree-ptree node))
+                (add-syntax (hash-ref def-table fnode) #f (atree-ptree node) #f)
+                (add-text "\n")
                 (add-text "= ")
                 (add-syntax (syntax-property (quasisyntax #,res) 'has-history (dtree-rtree current-trace)) 
-                            #f null #t)]))]
+                            #f null (equal? (dtree-label (dtree-rtree current-trace)) 'app))]))]
           [else
            (void)])))
     
