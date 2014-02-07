@@ -537,7 +537,11 @@
                  [res (get-trace-result (dtree-rtree current-trace))])
              (cond
                [(pair? fnode)
-                (add-syntax (first (cdr fnode)) (list (third (cdr fnode))) (second (cdr fnode)) #f)]
+                ;(printf "current=~a\n" current-trace)
+                (add-syntax (first (cdr fnode)) (list (third (cdr fnode))) (second (cdr fnode)) #f)
+                (printf "op=~a\n" (car fnode))
+                (printf "args=~a\n" (map get-trace-result (atree-ptree node))) 
+                ]
                [else
                 (add-syntax (hash-ref def-table fnode) #f args #f)
                 (add-text "= ")

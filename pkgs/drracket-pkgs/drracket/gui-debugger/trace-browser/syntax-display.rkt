@@ -159,6 +159,7 @@
     (define/private (apply-selection-callback selected-syntax)
       (let ([stx-trace (and selected-syntax (syntax-property selected-syntax 'has-history))])
         (when stx-trace
+          ;(printf "selected-syntax=~a, stx-trace=~a\n" selected-syntax stx-trace)
           (send browser update-view-text stx-trace)))
       (when (identifier? selected-syntax)
         (let ([found (member selected-syntax (hash-keys var-table) free-identifier=?)])
