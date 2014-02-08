@@ -143,7 +143,7 @@
       (cond
         [displayed? 
          (hash-set! values-displayed stx #f)
-         (send browser update-view-text raw-val)]
+         (send browser update-view-text raw-val #f)]
         [else
          (hash-set! values-displayed stx #t)
          (let* ([value (if displayed?
@@ -164,7 +164,7 @@
     (define/private (apply-selection-callback selected-syntax)
       (let ([stx-trace (and selected-syntax (syntax-property selected-syntax 'has-history))])
         (when stx-trace
-          (send browser update-view-text stx-trace)))
+          (send browser update-view-text stx-trace #f)))
       (when (identifier? selected-syntax)
         (let ([found (member selected-syntax (hash-keys var-table) free-identifier=?)])
           (when found

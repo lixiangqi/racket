@@ -25,6 +25,7 @@
     (init parent)
     
     (field [traces null]
+           [histories null]
            [sorted-traces null]
            [indexes null]
            [var-tables (make-hasheq)]
@@ -32,7 +33,7 @@
            [def-table null]
            [function-calls null]
            [last-app-list null]
-           [step 1]
+           [step 0]
            [limit 0]
            [call? #f]
            [sorted? #f])
@@ -195,10 +196,10 @@
                        (if (null? filter-lines)
                            (when (< line (length var-logs))
                              (move-to-view line)
-                             (update-view-text (traced-value-trace (trace-struct-value (list-ref traces line)))))
+                             (update-view-text (traced-value-trace (trace-struct-value (list-ref traces line))) #f))
                            (when (< line (length filter-lines))
                              (move-to-view line)
-                             (update-view-text (traced-value-trace (trace-struct-value (list-ref traces (list-ref filter-lines line)))))))])]))))))
+                             (update-view-text (traced-value-trace (trace-struct-value (list-ref traces (list-ref filter-lines line)))) #f)))])]))))))
                  
     (define search-text
       (new (class text%
@@ -262,9 +263,6 @@
     (define navigator 'uninitialized-navigator)
     (define previous-button 'uninitialized-previous-button)
     (define next-button 'uninitialized-next-button)
-    (define status-msg 'uninitialized-status-msg)
-    (define slider-panel 'uninitialized-slider-panel)
-    (define slider #f)   
     
     (define main-panel
       (new vertical-panel% [parent parent]))
@@ -313,9 +311,7 @@
     ;; Initialize navigator 
     (let ([navigate-previous-icon (compiled-bitmap (step-back-icon #:color run-icon-color #:height (toolbar-icon-height)))]
           [navigate-next-icon (compiled-bitmap (step-icon #:color run-icon-color #:height (toolbar-icon-height)))])
-      (set! slider-panel (new horizontal-panel% [parent view-panel] [stretchable-width #f] [stretchable-height #f]))
       (set! navigator (new horizontal-panel% [parent view-panel] [stretchable-height #f] [alignment '(center center)]))
-      (new message% [label ""] [parent navigator] [stretchable-width #t])
       (set! previous-button (new button% 
                                  [label (list navigate-previous-icon "Step" 'left)] 
                                  [parent navigator] 
@@ -324,20 +320,16 @@
       (set! next-button (new button% 
                              [label (list navigate-next-icon "Step" 'right)]
                              [parent navigator]
-                             [callback (lambda (b e) (navigate-next))]))
-      (set! status-msg (new message% [label ""] [parent navigator] [stretchable-width #t]))
-      (send view-panel change-children (lambda (l) (remove* (list slider-panel navigator) l eq?))))
+                             [callback (lambda (b e) (navigate-next))])))
                
     (define bold-sd (make-object style-delta% 'change-weight 'bold))
        
     (define/private (navigate-previous)
       (set! step (sub1 step))
-      (send slider set-value step)
       (update-trace-view-backward))
     
     (define/private (navigate-next)
       (set! step (add1 step))
-      (send slider set-value step)
       (update-trace-view-forward))
     
     (define/private (set-current-step s)
@@ -480,48 +472,8 @@
                                      (send text paragraph-end-position 0)))))
     
     (define/public (label-view-text label)
-      (label-text view-text label)
-      (when slider
-        (send slider-panel delete-child slider)
-        (send view-panel change-children (lambda (l) (remove* (list slider-panel navigator) l eq?)))
-        (set! slider #f)))
+      (label-text view-text label))
     
-    #;(define/private (update-view-text current-trace)
-      (cond
-        [(null? (trace-struct-funs current-trace))
-         (label-view-text "No associated function application\n")]
-        [else
-         #;(if slider
-             (send slider-panel delete-child slider)
-             (send view-panel change-children (lambda (l) (append l (list slider-panel navigator)))))
-         #;(let* ([funs (trace-struct-funs current-trace)]
-                [vars (trace-struct-vars current-trace)]
-                [inspect-stx (trace-struct-inspect-stx current-trace)]
-                [apps (append (trace-struct-apps current-trace) (list inspect-stx))])
-           (cond
-             [inspect-stx
-              (set! function-calls (reverse funs))
-              (set! var-tables (reverse vars))
-              (set! last-app-list (reverse apps))
-              (set! call? #f)]
-             [else
-              (set! function-calls funs)
-              (set! var-tables vars)
-              (set! last-app-list (rest apps))
-              (set! call? #t)])
-           (set! limit (length function-calls))
-           (set! step 1)
-           (send next-button enable #t)
-           (set! slider (new slider% 
-                             [label #f] 
-                             [min-value 1] 
-                             [max-value limit] 
-                             [parent slider-panel]
-                             [style (list 'horizontal 'plain)]
-                             [callback (lambda (b e) (set-current-step (send slider get-value)))]))
-           (update-trace-view-forward))
-         (update-trace-view-forward)]))
-    ;;;;;;;;;;;;;;;;;;;;
     (define/public (get-trace-result tree)
       (case (dtree-label tree)
         ['app 
@@ -532,8 +484,13 @@
         ['lf 
          (dtree-node tree)]))
  
-    (define/public (update-view-text current-trace)
+    (define/public (update-view-text current-trace replay?)
       (erase-all)
+      (unless replay?
+        (set! step (add1 step))
+        (when (> step 1)
+          (send previous-button enable #t))
+        (set! histories (append histories (list current-trace))))
       (let ([node (dtree-node current-trace)])
         (cond
           [(equal? (dtree-label current-trace) 'app)
@@ -555,7 +512,6 @@
                 (add-text ")")
                 ]
                [else
-                ;(printf "arg-tree = ~a\n" (atree-ptree node))
                 (add-syntax (hash-ref def-table fnode) #f (atree-ptree node) #f)
                 (add-text "\n")
                 (add-text "= ")
@@ -573,8 +529,7 @@
         [else 
          (add-syntax (- step 2))
          (add-separator)
-         (add-syntax (sub1 step))])
-      (send status-msg set-label (format "Step ~a of ~a" step limit)))      
+         (add-syntax (sub1 step))]))      
     
     (define/private (update-trace-view-forward)
       (if (= step 1)
@@ -586,7 +541,7 @@
     (define/private (update-trace-view-backward)
       (send next-button enable #t)
       (when (= step 1) (send previous-button enable #f))
-      (update-trace-view))
+      (update-view-text (list-ref histories (sub1 step)) #t))
     
     ;; Initialize
     (super-new)
