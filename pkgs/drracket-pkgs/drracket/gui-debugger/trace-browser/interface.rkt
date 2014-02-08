@@ -27,13 +27,19 @@
                    (join "listen-" name)))))])))
 
 ;; Interfaces
+;; displays-manager<%>
+(define-interface displays-manager<%> ()
+  (;; add-syntax-display : display<%> -> void
+   add-syntax-display
+
+   ;; remove-all-syntax-displays : -> void
+   remove-all-syntax-displays))
 
 ;; selection-manager<%>
 (define-interface selection-manager<%> ()
-  (set-syntax-display
-   
-   ;; selected-syntax : notify-box of syntax/#f
+  (;; selected-syntax : notify-box of syntax/#f
    (methods:notify selected-syntax)))
+
 
 ;; mark-manager<%>
 ;; Manages marks, mappings from marks to colors

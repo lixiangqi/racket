@@ -36,20 +36,34 @@
     (get-partition (datum->syntax #f 'nowhere))
     (super-new)))
 
+;; displays-manager-mixin
+(define displays-manager-mixin
+  (mixin () (displays-manager<%>)
+    ;; displays : (list-of display<%>)
+    (field [displays null])
+
+    ;; add-syntax-display : display<%> -> void
+    (define/public (add-syntax-display c)
+      (set! displays (cons c displays)))
+
+    ;; remove-all-syntax-displays : -> void
+    (define/public (remove-all-syntax-displays)
+      (set! displays null))
+
+    (super-new)))
+
 ;; selection-manager-mixin
 (define selection-manager-mixin
-  (mixin () (selection-manager<%>)
-    (field [display null])
+  (mixin (displays-manager<%>) (selection-manager<%>)
+    (inherit-field displays)
     (define-notify selected-syntax (new notify-box% (value #f)))
-    
-    (define/public (set-syntax-display d)
-      (set! display d))
-    
+
+    (super-new)
     (listen-selected-syntax
      (lambda (new-value)
-       (send/i display display<%> refresh)))
-       
-    (super-new)))
+       (for-each (lambda (display) 
+                   (send/i display display<%> refresh))
+                 displays)))))
 
 ;; mark-manager-mixin
 (define mark-manager-mixin
@@ -68,6 +82,7 @@
 (define controller%
   (class* (selection-manager-mixin
            (mark-manager-mixin
-            object%))
+            (displays-manager-mixin
+              object%)))
     (controller<%>)
     (super-new)))

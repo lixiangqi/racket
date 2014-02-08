@@ -17,7 +17,7 @@
 ;; print-syntax-to-editor : syntax text number number
 ;;                       -> display<%>
 ;; Note: must call display<%>::refresh to finish styling.
-(define (print-syntax-to-editor stx text browser var-table columns
+(define (print-syntax-to-editor stx text controller browser var-table columns
                                 [insertion-point (send text last-position)])
   (define output-port (open-output-string/count-lines))
   (define range (pretty-print-syntax stx 
@@ -25,11 +25,13 @@
                                      columns))
   (define output-string (get-output-string output-port))
   (define output-length (sub1 (string-length output-string))) ;; skip final newline
+  
   (with-unlock text
     (uninterruptible
      (send text insert output-length output-string insertion-point))
     (new display%
          (text text)
+         (controller controller)
          (browser browser)
          (var-table var-table)
          (range range)
@@ -40,14 +42,13 @@
 ;; Note: must call refresh method to finish styling.
 (define display%
   (class* object% (display<%>)
-    (init-field/i [range range<%>])
+    (init-field/i [controller controller<%>] 
+                  [range range<%>])
     (init-field text
                 browser
                 var-table
                 start-position
                 end-position)
-    
-    (define controller (new controller%))
 
     (define base-style
       (send (send text get-style-list) find-named-style (editor:get-default-color-style-name)))
@@ -143,12 +144,14 @@
       (cond
         [displayed? 
          (hash-set! values-displayed stx #f)
-         (send browser update-view-text raw-val #f)]
+         #;(send browser update-view-text raw-val #f)]
         [else
          (hash-set! values-displayed stx #t)
-         (let* ([value (if displayed?
+         (let* ([traced? (dtree? raw-val)]
+                [to-underline? (and traced? (equal? (dtree-label raw-val) 'app))]
+                [value (if displayed?
                            (syntax->datum stx) 
-                           (if (dtree? raw-val) (send browser get-trace-result raw-val) raw-val))]
+                           (if traced? (send browser get-trace-result raw-val) raw-val))]
                 [result (format "~a" value)])
            (for ([r (in-list (send/i range range<%> get-ranges stx))])
              (let* ([start (relative->text-position (car r))]
@@ -157,14 +160,15 @@
                (with-unlock text
                  (send text delete start end)
                  (send text insert result start)
-                 (send text change-style underline-d start end))
+                 (when to-underline? 
+                   (send text change-style underline-d start end)))
                (send range shift-range start end offset start-position)
                (set! end-position (+ end-position offset)))))]))
     
     (define/private (apply-selection-callback selected-syntax)
       (let ([stx-trace (and selected-syntax (syntax-property selected-syntax 'has-history))])
         (when stx-trace
-          (send browser update-view-text stx-trace #f)))
+          (send browser explore-subtree stx-trace)))
       (when (identifier? selected-syntax)
         (let ([found (member selected-syntax (hash-keys var-table) free-identifier=?)])
           (when found
@@ -191,7 +195,7 @@
 
     ;; Initialize
     (super-new)
-    (send/i controller controller<%> set-syntax-display this)
+    (send controller add-syntax-display this)
     (initialize)))
 
 (define (open-output-string/count-lines)

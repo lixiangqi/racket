@@ -9,6 +9,7 @@
          "text.rkt"
          "util.rkt"
          "../trace-util.rkt"
+         "controller.rkt"
          images/compile-time
          images/icons/misc
          (for-syntax racket/base
@@ -26,6 +27,7 @@
     
     (field [traces null]
            [histories null]
+           [subtree null]
            [sorted-traces null]
            [indexes null]
            [var-tables (make-hasheq)]
@@ -36,7 +38,8 @@
            [step 0]
            [limit 0]
            [call? #f]
-           [sorted? #f])
+           [sorted? #f]
+           [controller (new controller%)])
     
     (define log-text
       (new (class text%
@@ -317,6 +320,7 @@
                                  [parent navigator] 
                                  [callback (lambda (b e) (navigate-previous))]
                                  [enabled #f]))
+      
       (set! next-button (new button% 
                              [label (list navigate-next-icon "Step" 'right)]
                              [parent navigator]
@@ -324,22 +328,12 @@
                
     (define bold-sd (make-object style-delta% 'change-weight 'bold))
        
+    (define/private (navigate-next)
+      (update-view-text subtree #f))
+    
     (define/private (navigate-previous)
       (set! step (sub1 step))
       (update-trace-view-backward))
-    
-    (define/private (navigate-next)
-      (set! step (add1 step))
-      (update-trace-view-forward))
-    
-    (define/private (set-current-step s)
-      (cond
-        [(< step s)
-         (set! step s)
-         (update-trace-view-forward)]
-        [(> step s) 
-         (set! step s)
-         (update-trace-view-backward)]))
     
     (define/private (display-sorted-traces)
       (let* ([j 0]
@@ -422,7 +416,7 @@
     (define/public (add-syntax stx hi-stxes arg-values underline?)
       (with-unlock view-text
         (let ([arg-stxes (hash-ref arg-table (syntax-position stx) (lambda () null))])
-          (define display (print-syntax-to-editor stx view-text this
+          (define display (print-syntax-to-editor stx view-text controller this
                                                   (make-hasheq (map cons arg-stxes arg-values))
                                                   (calculate-columns)
                                                   (send view-text last-position)))
@@ -458,7 +452,8 @@
 
     (define/public (erase-all)
       (with-unlock view-text
-        (send view-text erase)))
+        (send view-text erase))
+      (send/i controller displays-manager<%> remove-all-syntax-displays))
     
     (define/public (get-text) view-text)
     
@@ -491,6 +486,7 @@
         (when (> step 1)
           (send previous-button enable #t))
         (set! histories (append histories (list current-trace))))
+      (unless replay?
       (let ([node (dtree-node current-trace)])
         (cond
           [(equal? (dtree-label current-trace) 'app)
@@ -518,8 +514,10 @@
                 (add-syntax (syntax-property (quasisyntax #,res) 'has-history (dtree-rtree current-trace)) 
                             #f null (equal? (dtree-label (dtree-rtree current-trace)) 'app))]))]
           [else
-           (void)])))
+           (void)]))))
     
+    (define/public (explore-subtree stx-trace)
+      (set! subtree stx-trace))
     
     (define/private (update-trace-view)
       (erase-all)
@@ -529,17 +527,9 @@
         [else 
          (add-syntax (- step 2))
          (add-separator)
-         (add-syntax (sub1 step))]))      
-    
-    (define/private (update-trace-view-forward)
-      (if (= step 1)
-          (send previous-button enable #f)
-          (send previous-button enable #t))
-      (when (>= step limit) (send next-button enable #f))
-      (update-trace-view))
+         (add-syntax (sub1 step))]))
     
     (define/private (update-trace-view-backward)
-      (send next-button enable #t)
       (when (= step 1) (send previous-button enable #f))
       (update-view-text (list-ref histories (sub1 step)) #t))
     
