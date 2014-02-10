@@ -314,6 +314,7 @@
     (let ([navigate-previous-icon (compiled-bitmap (step-back-icon #:color run-icon-color #:height (toolbar-icon-height)))]
           [navigate-next-icon (compiled-bitmap (step-icon #:color run-icon-color #:height (toolbar-icon-height)))])
       (set! navigator (new horizontal-panel% [parent view-panel] [stretchable-height #f] [alignment '(center center)]))
+      
       (set! previous-button (new button% 
                                  [label (list navigate-previous-icon "Step" 'left)] 
                                  [parent navigator] 
@@ -415,13 +416,9 @@
           (send display refresh))))
     
     ;;;;;;;;;;;;;;;;;;;;;;;;;;
-    (define (change-foreground-d)
-      (let ([sd (make-object style-delta% 'change-normal-color)])
-        (send sd set-delta-foreground "Green")
-        sd))
     
     (define/public (add-syntax stx hi-stxes arg-values underline? fun stack)
-      (printf "fun=~a, stack=~a\n" fun stack)
+      ;(printf "fun=~a, stack=~a\n" fun stack)
       (with-unlock view-text
         (let ([arg-stxes (hash-ref arg-table (syntax-position stx) (lambda () null))]
               [fun-binding (if (syntax? fun) (list (cons fun stack)) null)])
@@ -439,9 +436,6 @@
                 [s arg-stxes])
             (when (and (dtree? a) (equal? (dtree-label a) 'app))
               (send/i display display<%> underline-syntax s)))
-          #;(unless (empty? stack) ; make a new representation about stack
-            (printf "underline...fun=~a\n" fun)
-            (send/i display display<%> underline-syntax stx))
           (send display refresh))))
     
     (define/private (code-style text)

@@ -166,6 +166,7 @@
             (set! end-position (+ end-position offset))))))
     
     (define/private (apply-selection-callback selected-syntax)
+      (define ranges (send/i range range<%> get-ranges selected-syntax))
       (let ([stx-trace (and selected-syntax (syntax-property selected-syntax 'has-history))])
         (when stx-trace
           (send browser explore-subtree stx-trace)))
@@ -173,14 +174,18 @@
         (let ([found (member selected-syntax (hash-keys var-table) bound-identifier=?)])
           (when found
             (let* ([raw-val (hash-ref var-table (car found))])
-              (unless (list? raw-val) ; to modify
-              (for ([id (in-list (send/i range range<%> get-identifier-list))])
-                (when (free-identifier=? selected-syntax id)
-                  (display-id-value id raw-val (hash-ref values-displayed id #f))
-                  (for ([r (in-list (send/i range range<%> get-ranges id))])
-                    (restyle-range id r (highlight-style-delta "yellow") #t)))))
-              (add-clickbacks)))))
-      (for ([r (in-list (send/i range range<%> get-ranges selected-syntax))])
+              (cond
+                [(list? raw-val)
+                 (for ([r (in-list ranges)])
+                   (restyle-range selected-syntax r underline-d #f))]
+                [else
+                 (for ([id (in-list (send/i range range<%> get-identifier-list))])
+                   (when (free-identifier=? selected-syntax id)
+                     (display-id-value id raw-val (hash-ref values-displayed id #f))
+                     (for ([r (in-list (send/i range range<%> get-ranges id))])
+                       (restyle-range id r (highlight-style-delta "yellow") #t))))])))
+          (add-clickbacks)))
+      (for ([r (in-list ranges)])
         (restyle-range selected-syntax r select-d #t)))
     
     ;; restyle-range : syntax (cons num num) style-delta% boolean -> void
