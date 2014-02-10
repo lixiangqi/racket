@@ -309,7 +309,6 @@
       
     (define view-text (new browser-text%))
     (define view-panel (new vertical-panel% [parent split-panel]))
-    (define view-canvas (new canvas:color% (parent view-panel) (editor view-text)))
     
     ;; Initialize navigator 
     (let ([navigate-previous-icon (compiled-bitmap (step-back-icon #:color run-icon-color #:height (toolbar-icon-height)))]
@@ -325,6 +324,8 @@
                              [label (list navigate-next-icon "Step" 'right)]
                              [parent navigator]
                              [callback (lambda (b e) (navigate-next))])))
+    
+    (define view-canvas (new canvas:color% (parent view-panel) (editor view-text)))
                
     (define bold-sd (make-object style-delta% 'change-weight 'bold))
        
@@ -413,11 +414,13 @@
           (send/i display display<%> highlight-syntaxes hi-stxs highlight-color)
           (send display refresh))))
     ;;;;;;;;;;;;;;;;;;;;;;;;;;
-    (define/public (add-syntax stx hi-stxes arg-values underline?)
+    (define/public (add-syntax stx hi-stxes arg-values underline? fun stack)
+      (printf "fun=~a, stack=~a\n" fun stack)
       (with-unlock view-text
-        (let ([arg-stxes (hash-ref arg-table (syntax-position stx) (lambda () null))])
+        (let ([arg-stxes (hash-ref arg-table (syntax-position stx) (lambda () null))]
+              [fun-binding (if (syntax? fun) (list (cons fun stack)) null)])
           (define display (print-syntax-to-editor stx view-text controller this
-                                                  (make-hasheq (map cons arg-stxes arg-values))
+                                                  (make-hasheq (append (map cons arg-stxes arg-values) fun-binding))
                                                   (calculate-columns)
                                                   (send view-text last-position)))
           (define range (send/i display display<%> get-range))
@@ -430,6 +433,9 @@
                 [s arg-stxes])
             (when (and (dtree? a) (equal? (dtree-label a) 'app))
               (send/i display display<%> underline-syntax s)))
+          (unless (empty? stack) ; make a new representation about stack
+            (printf "underline...fun=~a\n" fun)
+            (send/i display display<%> underline-syntax stx))
           (send display refresh))))
     
     (define/private (code-style text)
@@ -493,24 +499,24 @@
                  [args (map dtree-node (atree-ptree node))]
                  [res (get-trace-result (dtree-rtree current-trace))])
              (cond
-               [(pair? fnode)
-                (add-syntax (first (cdr fnode)) (list (third (cdr fnode))) (second (cdr fnode)) #f)
+               [(equal? (dtree-label (atree-ftree node)) 'lfl)
+                (add-syntax (first (cdr fnode)) (list (third (cdr fnode))) (second (cdr fnode)) #f #f #f)
                 
                 (add-separator)
                 (add-text "(")
-                (add-syntax (quasisyntax #,(car fnode)) #f null #f)
+                (add-syntax (quasisyntax #,(car fnode)) #f null #f #f #f)
                 (add-text " ")
                 (map (lambda (t) 
                        (add-syntax (syntax-property (quasisyntax #,(get-trace-result t)) 'has-history t)
-                                   #f null (equal? (dtree-label t) 'app))
+                                   #f null (equal? (dtree-label t) 'app) #f #f)
                        (add-text " ")) (atree-ptree node))
                 (add-text ")")]
                [else
-                (add-syntax (hash-ref def-table fnode) #f (atree-ptree node) #f)
+                (add-syntax (hash-ref def-table (car fnode)) #f (atree-ptree node) #f (cddr fnode) (cadr fnode))
                 (add-text "\n")
                 (add-text "= ")
                 (add-syntax (syntax-property (quasisyntax #,res) 'has-history (dtree-rtree current-trace)) 
-                            #f null (equal? (dtree-label (dtree-rtree current-trace)) 'app))]))]
+                            #f null (equal? (dtree-label (dtree-rtree current-trace)) 'app) #f #f)]))]
           [else
            (printf "else entered!\n")
            (printf "current-trace=~a\n" current-trace)

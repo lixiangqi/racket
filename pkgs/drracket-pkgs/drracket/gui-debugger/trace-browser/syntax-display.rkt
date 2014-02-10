@@ -170,14 +170,15 @@
         (when stx-trace
           (send browser explore-subtree stx-trace)))
       (when (identifier? selected-syntax)
-        (let ([found (member selected-syntax (hash-keys var-table) free-identifier=?)])
+        (let ([found (member selected-syntax (hash-keys var-table) bound-identifier=?)])
           (when found
             (let* ([raw-val (hash-ref var-table (car found))])
+              (unless (list? raw-val) ; to modify
               (for ([id (in-list (send/i range range<%> get-identifier-list))])
                 (when (free-identifier=? selected-syntax id)
                   (display-id-value id raw-val (hash-ref values-displayed id #f))
                   (for ([r (in-list (send/i range range<%> get-ranges id))])
-                    (restyle-range id r (highlight-style-delta "yellow") #t))))
+                    (restyle-range id r (highlight-style-delta "yellow") #t)))))
               (add-clickbacks)))))
       (for ([r (in-list (send/i range range<%> get-ranges selected-syntax))])
         (restyle-range selected-syntax r select-d #t)))

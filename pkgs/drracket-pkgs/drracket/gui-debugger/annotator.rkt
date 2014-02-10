@@ -313,10 +313,16 @@
               (hash-set! argtable (syntax-position function-stx) arg-stxes)
               (quasisyntax/loc clause
                 (arg-list
-                 (let ([arg-values (map (lambda (x) (#,traced-value-val (x))) (list #,@debug-info-stx))])
-                   (with-continuation-mark 'inspect (list (quote-syntax #,function-stx) arg-values)
-                     (begin
-                       #,@new-bodies))))))]))
+                 (let ([arg-values (map (lambda (x) (#,traced-value-val (x))) (list #,@debug-info-stx))]
+                       [captured (continuation-mark-set-first #f 'stack null)]
+                       [var-table (make-hasheq)])
+                   (unless (empty? '#,new-bound-vars)
+                       (for-each (lambda (stx val) (hash-ref! var-table stx val)) '#,arg-stxes (list #,@debug-info-stx)))
+                   (let ([stack-info (list (quote-syntax #,function-stx) (#%plain-lambda () var-table))])
+                   (with-continuation-mark 'stack (append captured (list stack-info))
+                     (with-continuation-mark 'inspect (list (quote-syntax #,function-stx) arg-values)
+                       (begin
+                         #,@new-bodies))))))))]))
 
         (define annotated
           (rearm
@@ -353,12 +359,14 @@
              (quasisyntax/loc expr (#,traced-value datum (#,dtree 'lf datum #f)))]
             
             [(#%plain-app . exprs)
-             (let ([params (map (lambda (exp)
+             (let* ([params (map (lambda (exp)
                                   (annotate exp bound-vars #f module-name lambda?))
                                 (rest (syntax->list #'exprs)))]
-                   [stx-property (syntax-property expr 'inspect)]
-                   [op-name (syntax-e (first (syntax->list #'exprs)))]
-                   [raw-expr (lookup-stx-table #'exprs)])
+                    [stx-property (syntax-property expr 'inspect)]
+                    [op (first (syntax->list #'exprs))]
+                    [op-name (syntax-e (first (syntax->list #'exprs)))]
+                    [raw-expr (lookup-stx-table #'exprs)]
+                    [raw-op (lookup-stx-table op)])
                (cond 
                  [stx-property
                   (with-syntax ([to-inspect (third (syntax->list expr))]
@@ -369,14 +377,15 @@
                                      #,@params
                                      #f #f #f null #f))))]
                  [else
-                  (with-syntax ([op (first (syntax->list #'exprs))]
+                  (with-syntax ([op op]
+                                [raw-op raw-op]
                                 [raw-expr raw-expr])
                     (quasisyntax/loc expr
                       (let ([ns (variable-reference->namespace (#%variable-reference))]
                             [op-name (syntax-e #'op)])
                         (if (namespace-variable-value op-name #f (lambda () #f) ns)
                             ; self-defined function 
-                            (#,ap (#,traced-value op (#,dtree 'lff op-name #f)) #f #,@params)
+                            (#,ap (#,traced-value op (#,dtree 'lff op-name #f)) #'raw-op #,@params)
                             ; do not need to keep track of the library functions; no traced form
                             (#,ap op #'raw-expr #,@params)))))]))]
             
