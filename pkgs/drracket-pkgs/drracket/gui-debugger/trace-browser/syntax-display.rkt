@@ -165,8 +165,39 @@
             (send range shift-range start end offset start-position)
             (set! end-position (+ end-position offset))))))
     
+    (define/private (display-var-value stx displayed?)
+      (let* ([id-val (hash-ref var-table (syntax-position stx) (lambda () 'unfound))]
+             [value (if displayed?
+                        (syntax->datum stx)
+                        id-val)]
+             [result (format "~a" value)])
+        (if displayed?
+            (hash-set! values-displayed stx #f)
+            (hash-set! values-displayed stx #t))
+        (unless (eq? id-val 'unfound)
+          (for ([r (in-list (send/i range range<%> get-ranges stx))])
+            (let* ([start (relative->text-position (car r))]
+                   [end (relative->text-position (cdr r))]
+                   [offset (+ (string-length result) (- start end))])
+              (with-unlock text
+                (send text delete start end)
+                (send text insert result start))
+              (send range shift-range start end offset start-position)
+              (set! end-position (+ end-position offset)))))))
+    
     (define/private (apply-selection-callback selected-syntax)
       (define ranges (send/i range range<%> get-ranges selected-syntax))
+      (cond 
+        [(send browser get-explore-stack)
+         (for ([id (in-list (send/i range range<%> get-identifier-list))])
+          (when (free-identifier=? selected-syntax id)
+            (display-var-value id (hash-ref values-displayed id #f))
+            (for ([r (in-list (send/i range range<%> get-ranges id))])
+              (restyle-range id r (highlight-style-delta "yellow") #t))))
+         (add-clickbacks)]
+        [else
+      
+      
       (let ([stx-trace (and selected-syntax (syntax-property selected-syntax 'has-history))])
         (when stx-trace
           (send browser explore-subtree stx-trace)))
@@ -176,6 +207,7 @@
             (let* ([raw-val (hash-ref var-table (car found))])
               (cond
                 [(list? raw-val)
+                 (send browser set-current-stack raw-val)
                  (for ([r (in-list ranges)])
                    (restyle-range selected-syntax r underline-d #f))]
                 [else
@@ -184,7 +216,7 @@
                      (display-id-value id raw-val (hash-ref values-displayed id #f))
                      (for ([r (in-list (send/i range range<%> get-ranges id))])
                        (restyle-range id r (highlight-style-delta "yellow") #t))))])))
-          (add-clickbacks)))
+          (add-clickbacks)))])
       (for ([r (in-list ranges)])
         (restyle-range selected-syntax r select-d #t)))
     

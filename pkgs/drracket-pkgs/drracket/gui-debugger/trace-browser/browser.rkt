@@ -28,6 +28,7 @@
     (field [traces null]
            [histories null]
            [subtree null]
+           [stack null]
            [sorted-traces null]
            [indexes null]
            [var-tables (make-hasheq)]
@@ -35,10 +36,12 @@
            [def-table null]
            [function-calls null]
            [last-app-list null]
+           [stack-index 0]
            [step 0]
            [limit 0]
            [call? #f]
            [sorted? #f]
+           [explore-stack? #f]
            [controller (new controller%)])
     
     (define log-text
@@ -334,8 +337,13 @@
       (update-view-text subtree #f))
     
     (define/private (navigate-previous)
-      (set! step (sub1 step))
-      (update-trace-view-backward))
+      (cond
+        [explore-stack?
+         (update-stack-view stack-index)
+         (set! stack-index (add1 stack-index))]
+        [else
+         (set! step (sub1 step))
+         (update-trace-view-backward)]))
     
     (define/private (display-sorted-traces)
       (let* ([j 0]
@@ -522,12 +530,40 @@
            (printf "current-trace=~a\n" current-trace)
            (void)])))
     
+    (define/public (update-stack-view i)
+      (erase-all)
+      (with-unlock view-text
+        (let* ([current-stack (list-ref stack i)]
+               [stx (first current-stack)])
+          (printf "var-table=~a\n" ((second current-stack)))
+          (define display (print-syntax-to-editor stx view-text controller this
+                                                  ((second current-stack))
+                                                  (calculate-columns)
+                                                  (send view-text last-position)))
+          (send view-text insert "\n")
+          (define range (send/i display display<%> get-range))
+          (define offset (send/i display display<%> get-start-position))
+          (send display refresh))))
+    
     (define/public (explore-subtree stx-trace)
       (send next-button enable #t)
+      (set-explore-stack #f)
       (set! subtree stx-trace))
     
     (define/public (disable-subtree-explore)
       (send next-button enable #f))
+    
+    (define/public (set-current-stack s)
+      (send next-button enable #f)
+      (send previous-button enable #t)
+      (set-explore-stack #t)
+      (set! stack-index 0)
+      (set! stack s))
+    
+    (define/public (set-explore-stack b)
+      (set! explore-stack? b))
+    
+    (define/public (get-explore-stack) explore-stack?)
     
     (define/private (update-trace-view)
       (erase-all)
