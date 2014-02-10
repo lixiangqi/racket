@@ -486,7 +486,6 @@
         (when (> step 1)
           (send previous-button enable #t))
         (set! histories (append histories (list current-trace))))
-      (unless replay?
       (let ([node (dtree-node current-trace)])
         (cond
           [(equal? (dtree-label current-trace) 'app)
@@ -505,8 +504,7 @@
                        (add-syntax (syntax-property (quasisyntax #,(get-trace-result t)) 'has-history t)
                                    #f null (equal? (dtree-label t) 'app))
                        (add-text " ")) (atree-ptree node))
-                (add-text ")")
-                ]
+                (add-text ")")]
                [else
                 (add-syntax (hash-ref def-table fnode) #f (atree-ptree node) #f)
                 (add-text "\n")
@@ -514,10 +512,16 @@
                 (add-syntax (syntax-property (quasisyntax #,res) 'has-history (dtree-rtree current-trace)) 
                             #f null (equal? (dtree-label (dtree-rtree current-trace)) 'app))]))]
           [else
-           (void)]))))
+           (printf "else entered!\n")
+           (printf "current-trace=~a\n" current-trace)
+           (void)])))
     
     (define/public (explore-subtree stx-trace)
+      (send next-button enable #t)
       (set! subtree stx-trace))
+    
+    (define/public (disable-subtree-explore)
+      (send next-button enable #f))
     
     (define/private (update-trace-view)
       (erase-all)
@@ -531,6 +535,7 @@
     
     (define/private (update-trace-view-backward)
       (when (= step 1) (send previous-button enable #f))
+      (set! histories (take histories (sub1 (length histories))))
       (update-view-text (list-ref histories (sub1 step)) #t))
     
     ;; Initialize

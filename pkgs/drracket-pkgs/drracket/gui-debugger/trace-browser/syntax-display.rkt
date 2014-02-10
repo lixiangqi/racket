@@ -141,29 +141,29 @@
             (restyle-range stx r delta #t)))))
     
     (define/private (display-id-value stx raw-val displayed?)
-      (cond
-        [displayed? 
-         (hash-set! values-displayed stx #f)
-         #;(send browser update-view-text raw-val #f)]
-        [else
-         (hash-set! values-displayed stx #t)
-         (let* ([traced? (dtree? raw-val)]
-                [to-underline? (and traced? (equal? (dtree-label raw-val) 'app))]
-                [value (if displayed?
-                           (syntax->datum stx) 
-                           (if traced? (send browser get-trace-result raw-val) raw-val))]
-                [result (format "~a" value)])
-           (for ([r (in-list (send/i range range<%> get-ranges stx))])
-             (let* ([start (relative->text-position (car r))]
-                    [end (relative->text-position (cdr r))]
-                    [offset (+ (string-length result) (- start end))])
-               (with-unlock text
-                 (send text delete start end)
-                 (send text insert result start)
-                 (when to-underline? 
-                   (send text change-style underline-d start end)))
-               (send range shift-range start end offset start-position)
-               (set! end-position (+ end-position offset)))))]))
+      (define traced? (dtree? raw-val))
+      (define to-underline? (and traced? (equal? (dtree-label raw-val) 'app)))
+      (if to-underline?
+          (send browser explore-subtree raw-val)
+          (send browser disable-subtree-explore))
+      (if displayed?
+          (hash-set! values-displayed stx #f)
+          (hash-set! values-displayed stx #t))
+      (let* ([value (if displayed?
+                        (syntax->datum stx) 
+                        (if traced? (send browser get-trace-result raw-val) raw-val))]
+             [result (format "~a" value)])
+        (for ([r (in-list (send/i range range<%> get-ranges stx))])
+          (let* ([start (relative->text-position (car r))]
+                 [end (relative->text-position (cdr r))]
+                 [offset (+ (string-length result) (- start end))])
+            (with-unlock text
+              (send text delete start end)
+              (send text insert result start)
+              (when to-underline? 
+                (send text change-style underline-d start end)))
+            (send range shift-range start end offset start-position)
+            (set! end-position (+ end-position offset))))))
     
     (define/private (apply-selection-callback selected-syntax)
       (let ([stx-trace (and selected-syntax (syntax-property selected-syntax 'has-history))])
