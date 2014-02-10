@@ -413,7 +413,13 @@
             (set! highlight-color "MistyRose"))
           (send/i display display<%> highlight-syntaxes hi-stxs highlight-color)
           (send display refresh))))
+    
     ;;;;;;;;;;;;;;;;;;;;;;;;;;
+    (define (change-foreground-d)
+      (let ([sd (make-object style-delta% 'change-normal-color)])
+        (send sd set-delta-foreground "Green")
+        sd))
+    
     (define/public (add-syntax stx hi-stxes arg-values underline? fun stack)
       (printf "fun=~a, stack=~a\n" fun stack)
       (with-unlock view-text
@@ -433,7 +439,7 @@
                 [s arg-stxes])
             (when (and (dtree? a) (equal? (dtree-label a) 'app))
               (send/i display display<%> underline-syntax s)))
-          (unless (empty? stack) ; make a new representation about stack
+          #;(unless (empty? stack) ; make a new representation about stack
             (printf "underline...fun=~a\n" fun)
             (send/i display display<%> underline-syntax stx))
           (send display refresh))))
