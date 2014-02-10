@@ -166,7 +166,7 @@
             (set! end-position (+ end-position offset))))))
     
     (define/private (display-var-value stx displayed?)
-      (let* ([id-val (hash-ref var-table (syntax-position stx) (lambda () 'unfound))]
+      (let* ([id-val (hash-ref var-table stx (lambda () 'unfound))]
              [value (if displayed?
                         (syntax->datum stx)
                         id-val)]
@@ -189,18 +189,11 @@
       (define ranges (send/i range range<%> get-ranges selected-syntax))
       (cond 
         [(send browser get-explore-stack)
-         (for ([id (in-list (send/i range range<%> get-identifier-list))])
-          (when (free-identifier=? selected-syntax id)
-            (display-var-value id (hash-ref values-displayed id #f))
-            (for ([r (in-list (send/i range range<%> get-ranges id))])
-              (restyle-range id r (highlight-style-delta "yellow") #t))))
-         (add-clickbacks)]
+         (void)]
         [else
-      
-      
       (let ([stx-trace (and selected-syntax (syntax-property selected-syntax 'has-history))])
         (when stx-trace
-          (send browser explore-subtree stx-trace)))
+          (send browser explore-subtree stx-trace)))])
       (when (identifier? selected-syntax)
         (let ([found (member selected-syntax (hash-keys var-table) bound-identifier=?)])
           (when found
@@ -216,7 +209,7 @@
                      (display-id-value id raw-val (hash-ref values-displayed id #f))
                      (for ([r (in-list (send/i range range<%> get-ranges id))])
                        (restyle-range id r (highlight-style-delta "yellow") #t))))])))
-          (add-clickbacks)))])
+          (add-clickbacks)))
       (for ([r (in-list ranges)])
         (restyle-range selected-syntax r select-d #t)))
     
