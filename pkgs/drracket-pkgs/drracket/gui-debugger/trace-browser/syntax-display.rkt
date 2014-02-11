@@ -176,13 +176,12 @@
     
     (define/private (apply-selection-callback selected-syntax)
       (define ranges (send/i range range<%> get-ranges selected-syntax))
-      (cond 
-        [(send browser get-explore-stack)
-         (void)]
-        [else
-      (let ([stx-trace (and selected-syntax (syntax-property selected-syntax 'has-history))])
-        (when stx-trace
-          (send browser explore-subtree stx-trace)))])
+      (unless (send browser get-explore-stack)
+        (send browser disable-subtree-explore)
+        (let ([stx-trace (and selected-syntax (syntax-property selected-syntax 'has-history))])
+          (when stx-trace
+            (send browser explore-subtree stx-trace))))
+      (send browser set-explore-stack #f)
       (when (identifier? selected-syntax)
         (let ([found (member selected-syntax (hash-keys var-table) bound-identifier=?)])
           (when found

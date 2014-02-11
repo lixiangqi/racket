@@ -352,7 +352,6 @@
       (cond
         [explore-stack?
          (send next-button enable #t)
-         (printf "navigate-previous:~a\n" stack-index)
          (update-stack-view stack-index)
          (set! stack-index (add1 stack-index))
          (when (= stack-index (length stack))
@@ -483,7 +482,8 @@
     (define/public (erase-all)
       (with-unlock view-text
         (send view-text erase))
-      (send/i controller displays-manager<%> remove-all-syntax-displays))
+      (send/i controller displays-manager<%> remove-all-syntax-displays)
+      (send/i controller selection-manager<%> set-selected-syntax #f))
     
     (define/public (get-text) view-text)
     
