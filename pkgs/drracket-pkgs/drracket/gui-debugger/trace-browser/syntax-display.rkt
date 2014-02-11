@@ -141,17 +141,26 @@
             (restyle-range stx r delta #t)))))
     
     (define/private (display-id-value stx raw-val displayed?)
-      (define traced? (dtree? raw-val))
-      (define to-underline? (and traced? (equal? (dtree-label raw-val) 'app)))
+      (define (get-value)
+        (cond 
+          [displayed?
+           (syntax->datum stx)]
+          [else
+           (cond
+             [(dtree? raw-val)
+              (send browser get-trace-result raw-val)]
+             [(traced-value? raw-val)
+              (traced-value-val raw-val)]
+             [else raw-val])]))
+      (define to-underline? (and (dtree? raw-val) (equal? (dtree-label raw-val) 'app)))
       (if to-underline?
           (send browser explore-subtree raw-val)
-          (send browser disable-subtree-explore))
+          (when (dtree? raw-val)
+            (send browser disable-subtree-explore)))
       (if displayed?
           (hash-set! values-displayed stx #f)
           (hash-set! values-displayed stx #t))
-      (let* ([value (if displayed?
-                        (syntax->datum stx) 
-                        (if traced? (send browser get-trace-result raw-val) raw-val))]
+      (let* ([value (get-value)]
              [result (format "~a" value)])
         (for ([r (in-list (send/i range range<%> get-ranges stx))])
           (let* ([start (relative->text-position (car r))]
@@ -164,26 +173,6 @@
                 (send text change-style underline-d start end)))
             (send range shift-range start end offset start-position)
             (set! end-position (+ end-position offset))))))
-    
-    (define/private (display-var-value stx displayed?)
-      (let* ([id-val (hash-ref var-table stx (lambda () 'unfound))]
-             [value (if displayed?
-                        (syntax->datum stx)
-                        id-val)]
-             [result (format "~a" value)])
-        (if displayed?
-            (hash-set! values-displayed stx #f)
-            (hash-set! values-displayed stx #t))
-        (unless (eq? id-val 'unfound)
-          (for ([r (in-list (send/i range range<%> get-ranges stx))])
-            (let* ([start (relative->text-position (car r))]
-                   [end (relative->text-position (cdr r))]
-                   [offset (+ (string-length result) (- start end))])
-              (with-unlock text
-                (send text delete start end)
-                (send text insert result start))
-              (send range shift-range start end offset start-position)
-              (set! end-position (+ end-position offset)))))))
     
     (define/private (apply-selection-callback selected-syntax)
       (define ranges (send/i range range<%> get-ranges selected-syntax))
@@ -199,6 +188,8 @@
           (when found
             (let* ([raw-val (hash-ref var-table (car found))])
               (cond
+                [(null? raw-val)
+                 (void)]
                 [(list? raw-val)
                  (send browser set-current-stack raw-val)
                  (for ([r (in-list ranges)])

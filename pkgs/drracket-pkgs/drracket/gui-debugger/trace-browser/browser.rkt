@@ -327,20 +327,36 @@
       (set! next-button (new button% 
                              [label (list navigate-next-icon "Step" 'right)]
                              [parent navigator]
-                             [callback (lambda (b e) (navigate-next))])))
+                             [callback (lambda (b e) (navigate-next))]
+                             [enabled #f])))
     
     (define view-canvas (new canvas:color% (parent view-panel) (editor view-text)))
                
     (define bold-sd (make-object style-delta% 'change-weight 'bold))
        
     (define/private (navigate-next)
-      (update-view-text subtree #f))
+      (cond
+        [explore-stack?
+         (cond 
+           [(= stack-index (length stack))
+            (update-view-text subtree #f)]
+           [else
+            (update-stack-view stack-index)
+            (set! stack-index (sub1 stack-index))
+            (when (= stack-index 0)
+              (send next-button enable #f))])]
+        [else
+         (update-view-text subtree #f)]))
     
     (define/private (navigate-previous)
       (cond
         [explore-stack?
+         (send next-button enable #t)
+         (printf "navigate-previous:~a\n" stack-index)
          (update-stack-view stack-index)
-         (set! stack-index (add1 stack-index))]
+         (set! stack-index (add1 stack-index))
+         (when (= stack-index (length stack))
+           (send previous-button enable #f))]
         [else
          (set! step (sub1 step))
          (update-trace-view-backward)]))
@@ -535,7 +551,6 @@
       (with-unlock view-text
         (let* ([current-stack (list-ref stack i)]
                [stx (first current-stack)])
-          (printf "var-table=~a\n" ((second current-stack)))
           (define display (print-syntax-to-editor stx view-text controller this
                                                   ((second current-stack))
                                                   (calculate-columns)

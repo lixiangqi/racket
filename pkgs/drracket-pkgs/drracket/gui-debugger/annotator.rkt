@@ -309,7 +309,8 @@
                                            (loop (cdr bodies)))))]
                    [debug-info-stx (assemble-debug-info new-bound-vars new-bound-vars 'normal #f)]
                    [function-stx (lookup-stx-table clause)]
-                   [arg-stxes (map (lambda (a) (lookup-stx-table a)) new-bound-vars)])
+                   [arg-stxes (map (lambda (a) (lookup-stx-table a)) new-bound-vars)]
+                   [args (lambda () arg-stxes)])
               (hash-set! argtable (syntax-position function-stx) arg-stxes)
               (quasisyntax/loc clause
                 (arg-list
@@ -317,7 +318,7 @@
                        [captured (continuation-mark-set-first #f 'stack null)]
                        [var-table (make-hasheq)])
                    (unless (empty? '#,new-bound-vars)
-                       (for-each (lambda (stx val) (hash-ref! var-table stx val)) '#,arg-stxes (list #,@debug-info-stx)))
+                       (for-each (lambda (stx val) (hash-ref! var-table stx val)) (#,args) (list #,@debug-info-stx)))
                    (let ([stack-info (list (quote-syntax #,function-stx) (#%plain-lambda () var-table))])
                    (with-continuation-mark 'stack (append captured (list stack-info))
                      (with-continuation-mark 'inspect (list (quote-syntax #,function-stx) arg-values)
