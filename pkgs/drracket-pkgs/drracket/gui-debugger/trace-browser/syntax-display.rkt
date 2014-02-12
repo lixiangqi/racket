@@ -182,27 +182,28 @@
           (when stx-trace
             (send browser set-explore-stack #f)
             (send browser explore-subtree stx-trace))))
-      ;(send browser set-explore-stack #f)
-      (when (identifier? selected-syntax)
-        (let ([found (member selected-syntax (hash-keys var-table) bound-identifier=?)])
-          (when found
-            (let* ([raw-val (hash-ref var-table (car found))])
-              (cond
-                [(null? raw-val)
-                 (void)]
-                [(list? raw-val)
-                 (printf "set-current-stack ...\n")
-                 (send browser set-current-stack raw-val)
-                 (for ([r (in-list ranges)])
-                   (restyle-range selected-syntax r underline-d #f))]
-                [else
-                 (printf "id entered, explore-stack=~a\n" (send browser get-explore-stack))
-                 (for ([id (in-list (send/i range range<%> get-identifier-list))])
-                   (when (free-identifier=? selected-syntax id)
-                     (display-id-value id raw-val (hash-ref values-displayed id #f))
-                     (for ([r (in-list (send/i range range<%> get-ranges id))])
-                       (restyle-range id r (highlight-style-delta "yellow") #t))))])))
-          (add-clickbacks)))
+      (cond
+        [(identifier? selected-syntax)
+         (let ([found (member selected-syntax (hash-keys var-table) bound-identifier=?)])
+           (when found
+             (let* ([raw-val (hash-ref var-table (car found))])
+               (cond
+                 [(null? raw-val)
+                  (void)]
+                 [(list? raw-val)
+                  (send browser set-current-stack raw-val)
+                  (for ([r (in-list ranges)])
+                    (restyle-range selected-syntax r underline-d #f))]
+                 [else
+                  (send browser reset-new-stack)
+                  (for ([id (in-list (send/i range range<%> get-identifier-list))])
+                    (when (free-identifier=? selected-syntax id)
+                      (display-id-value id raw-val (hash-ref values-displayed id #f))
+                      (for ([r (in-list (send/i range range<%> get-ranges id))])
+                        (restyle-range id r (highlight-style-delta "yellow") #t))))])))
+           (add-clickbacks))]
+        [else
+         (send browser reset-new-stack)])
       (for ([r (in-list ranges)])
         (restyle-range selected-syntax r select-d #t)))
     

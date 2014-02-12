@@ -91,6 +91,7 @@
                (end-edit-sequence))
              
              (define/private (move-to-view num)
+               (initialize-traces)
                (set! mark-num num)
                (begin-edit-sequence)
                (lock #f)
@@ -515,15 +516,21 @@
                (dtree-node res)))]
         ['lf 
          (dtree-node tree)]))
+    
+    (define/private (initialize-traces)
+      (set! step -1)
+      (set! new-subtree? #t)
+      (set! histories null))
  
     (define/public (update-view-text current-trace replay?)
       (erase-all)
       (when (and new-subtree? (not replay?))
-        (printf "update-view-text: add history\n")
         (set! step (add1 step))
-        (when (> step 1)
+        (when (> step 0)
           (send previous-button enable #t))
-        (set! histories (append histories (list current-trace))))
+        (set! histories (append histories (list current-trace)))
+        (printf "update-view-text: add history, histories length=~a, step=~a\n" (length histories) step)
+        )
       (let ([node (dtree-node current-trace)])
         (cond
           [(equal? (dtree-label current-trace) 'app)
@@ -578,6 +585,12 @@
     (define/public (disable-subtree-explore)
       (send next-button enable #f))
     
+    (define/public (reset-new-stack)
+      (unless explore-stack?
+        (set! new-stack? #f)))
+    
+    (define/public (get-new-stack) new-stack?)
+    
     (define/public (set-current-stack s)
       (send next-button enable #f)
       (send previous-button enable #t)
@@ -606,6 +619,7 @@
           (send previous-button enable #f)
           (send previous-button enable #t))
       (set! histories (take histories (add1 step)))
+      (printf "display step=~a, new-histories=~a\n" step (length histories)) 
       (update-view-text (list-ref histories step) #t))
     
     ;; Initialize
