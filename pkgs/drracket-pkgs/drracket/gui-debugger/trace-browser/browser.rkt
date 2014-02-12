@@ -340,7 +340,7 @@
        
     (define/private (navigate-next)
       (cond
-        [explore-stack?
+        [new-stack?
          (cond 
            [(= stack-index (length stack))
             (set! explore-stack? #f)
@@ -354,9 +354,10 @@
             (when (= stack-index 0)
               (send next-button enable #f))])]
         [lf-view?
-         (when (= step 0)
-           (send next-button enable #f))
          (set! step (sub1 step))
+         (when (= step 0)
+           (send next-button enable #f)
+           (send previous-button enable #t))
          (update-stack-view (list-ref stack step))]
         [else
          (update-view-text subtree #f)]))
@@ -461,7 +462,6 @@
     ;;;;;;;;;;;;;;;;;;;;;;;;;;
     
     (define/public (add-syntax stx hi-stxes arg-values underline? fun stack)
-      ;(printf "fun=~a, stack=~a\n" fun stack)
       (with-unlock view-text
         (let ([arg-stxes (hash-ref arg-table (syntax-position stx) (lambda () null))]
               [fun-binding (if (syntax? fun) (list (cons fun stack)) null)])
@@ -546,8 +546,7 @@
              (set! step (add1 step))
              (when (> step 0)
                (send previous-button enable #t))
-             (set! histories (append histories (list current-trace)))
-             (printf "update-view-text: add history, histories length=~a, step=~a\n" (length histories) step))
+             (set! histories (append histories (list current-trace))))
            (set! lf-view? #f)
            (let ([fnode (dtree-node (atree-ftree node))]
                  [args (map dtree-node (atree-ptree node))]
@@ -574,9 +573,9 @@
           [(equal? label 'lf)
            (set! lf-view? #t)
            (set-explore-stack #t)
-           (send previous-button enable #t)
-           (printf "else entered!\n")
            (set! stack (cdr (dtree-node current-trace)))
+           (when (> (length stack) 1)
+             (send previous-button enable #t))
            (set! step (add1 step))
            (update-stack-view (list-ref stack step))])))
     
@@ -601,7 +600,6 @@
       (set! subtree stx-trace))
     
     (define/public (disable-subtree-explore)
-      (printf "diable-subtree-explore.....\n")
       (send next-button enable #f))
     
     (define/public (reset-new-stack)
@@ -638,7 +636,6 @@
           (send previous-button enable #f)
           (send previous-button enable #t))
       (set! histories (take histories (add1 step)))
-      (printf "display step=~a, new-histories=~a\n" step (length histories)) 
       (update-view-text (list-ref histories step) #t))
     
     ;; Initialize
