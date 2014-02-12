@@ -15,6 +15,7 @@
          mrlib/bitmap-label
          mrlib/close-icon
          "annotator.rkt"
+         "trace-util.rkt"
          "load-sandbox.rkt"
          "syntax-traversal.rkt"
          "trace-browser/frame.rkt"
@@ -891,6 +892,8 @@
               [else (loop (rest bindings))])))
         
         (define/public (update-logs exp val num label inspect-stx ccm fun-traces)
+          (printf "\nexp=~a, val=~a\n" exp val)
+          (printf "ccm=~a\n" (continuation-mark-set-first (current-continuation-marks) 'stack null))
           (send (send (get-frame) get-trace-button) enable #t)
           (let* ([pos (syntax-position exp)]
                  [count (hash-ref trace-counts pos 0)])

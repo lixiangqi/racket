@@ -376,7 +376,7 @@
                       (let ([to-inspect-stx (#,lookup-stx-table #'to-inspect)])
                         (#%plain-app #,record-log to-inspect-stx
                                      #,@params
-                                     #f #f #f null #f))))]
+                                     #f #f #f (current-continuation-marks) #f))))]
                  [else
                   (with-syntax ([op op]
                                 [raw-op raw-op]

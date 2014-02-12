@@ -520,7 +520,9 @@
     (define/private (initialize-traces)
       (set! step -1)
       (set! new-subtree? #t)
-      (set! histories null))
+      (set! histories null)
+      (send previous-button enable #f)
+      (send next-button enable #f))
  
     (define/public (update-view-text current-trace replay?)
       (erase-all)
