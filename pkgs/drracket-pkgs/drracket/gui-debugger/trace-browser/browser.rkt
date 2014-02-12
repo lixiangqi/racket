@@ -44,6 +44,7 @@
            [explore-stack? #f]
            [new-subtree? #t]
            [new-stack? #f]
+           [lf-view? #f]
            [controller (new controller%)])
     
     (define log-text
@@ -348,10 +349,15 @@
               (send previous-button enable #t)
               (update-view-text subtree #t))]
            [else
-            (update-stack-view stack-index)
+            (update-stack-view (list-ref stack stack-index))
             (set! stack-index (sub1 stack-index))
             (when (= stack-index 0)
               (send next-button enable #f))])]
+        [lf-view?
+         (when (= step 0)
+           (send next-button enable #f))
+         (set! step (sub1 step))
+         (update-stack-view (list-ref stack step))]
         [else
          (update-view-text subtree #f)]))
     
@@ -361,10 +367,16 @@
         [new-stack?
          (set-explore-stack #t)
          (send next-button enable #t)
-         (update-stack-view stack-index)
+         (update-stack-view (list-ref stack stack-index))
          (set! stack-index (add1 stack-index))
          (when (= stack-index (length stack))
            (send previous-button enable #f))]
+        [lf-view?
+         (set! step (add1 step))
+         (send next-button enable #t)
+         (when (= step (sub1 (length stack)))
+           (send previous-button enable #f))
+         (update-stack-view (list-ref stack step))]
         [else
          (update-trace-view-backward)]))
     
@@ -526,16 +538,17 @@
  
     (define/public (update-view-text current-trace replay?)
       (erase-all)
-      (when (and new-subtree? (not replay?))
-        (set! step (add1 step))
-        (when (> step 0)
-          (send previous-button enable #t))
-        (set! histories (append histories (list current-trace)))
-        (printf "update-view-text: add history, histories length=~a, step=~a\n" (length histories) step)
-        )
-      (let ([node (dtree-node current-trace)])
+      (let ([node (dtree-node current-trace)]
+            [label (dtree-label current-trace)])
         (cond
-          [(equal? (dtree-label current-trace) 'app)
+          [(equal? label 'app)
+           (when (and new-subtree? (not replay?))
+             (set! step (add1 step))
+             (when (> step 0)
+               (send previous-button enable #t))
+             (set! histories (append histories (list current-trace)))
+             (printf "update-view-text: add history, histories length=~a, step=~a\n" (length histories) step))
+           (set! lf-view? #f)
            (let ([fnode (dtree-node (atree-ftree node))]
                  [args (map dtree-node (atree-ptree node))]
                  [res (get-trace-result (dtree-rtree current-trace))])
@@ -558,16 +571,19 @@
                 (add-text "= ")
                 (add-syntax (syntax-property (quasisyntax #,res) 'has-history (dtree-rtree current-trace)) 
                             #f null (equal? (dtree-label (dtree-rtree current-trace)) 'app) #f #f)]))]
-          [else
+          [(equal? label 'lf)
+           (set! lf-view? #t)
+           (set-explore-stack #t)
+           (send previous-button enable #t)
            (printf "else entered!\n")
-           (printf "current-trace=~a\n" current-trace)
-           (void)])))
+           (set! stack (cdr (dtree-node current-trace)))
+           (set! step (add1 step))
+           (update-stack-view (list-ref stack step))])))
     
-    (define/public (update-stack-view i)
+    (define/public (update-stack-view current-stack)
       (erase-all)
       (with-unlock view-text
-        (let* ([current-stack (list-ref stack i)]
-               [stx (first current-stack)])
+        (let ([stx (first current-stack)])
           (define display (print-syntax-to-editor stx view-text controller this
                                                   ((second current-stack))
                                                   (calculate-columns)
@@ -585,6 +601,7 @@
       (set! subtree stx-trace))
     
     (define/public (disable-subtree-explore)
+      (printf "diable-subtree-explore.....\n")
       (send next-button enable #f))
     
     (define/public (reset-new-stack)
