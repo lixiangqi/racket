@@ -37,11 +37,13 @@
            [function-calls null]
            [last-app-list null]
            [stack-index 0]
-           [step 0]
+           [step -1]
            [limit 0]
            [call? #f]
            [sorted? #f]
            [explore-stack? #f]
+           [new-subtree? #t]
+           [new-stack? #f]
            [controller (new controller%)])
     
     (define log-text
@@ -339,7 +341,11 @@
         [explore-stack?
          (cond 
            [(= stack-index (length stack))
-            (update-view-text subtree #f)]
+            (set! explore-stack? #f)
+            (set! new-stack? #f)
+            (unless (= step 0)
+              (send previous-button enable #t)
+              (update-view-text subtree #t))]
            [else
             (update-stack-view stack-index)
             (set! stack-index (sub1 stack-index))
@@ -349,15 +355,16 @@
          (update-view-text subtree #f)]))
     
     (define/private (navigate-previous)
+      (set! new-subtree? #f)
       (cond
-        [explore-stack?
+        [new-stack?
+         (set-explore-stack #t)
          (send next-button enable #t)
          (update-stack-view stack-index)
          (set! stack-index (add1 stack-index))
          (when (= stack-index (length stack))
            (send previous-button enable #f))]
         [else
-         (set! step (sub1 step))
          (update-trace-view-backward)]))
     
     (define/private (display-sorted-traces)
@@ -511,7 +518,8 @@
  
     (define/public (update-view-text current-trace replay?)
       (erase-all)
-      (unless replay?
+      (when (and new-subtree? (not replay?))
+        (printf "update-view-text: add history\n")
         (set! step (add1 step))
         (when (> step 1)
           (send previous-button enable #t))
@@ -561,8 +569,10 @@
           (send display refresh))))
     
     (define/public (explore-subtree stx-trace)
+      (set! new-subtree? #t)
       (send next-button enable #t)
       (set-explore-stack #f)
+      (set! new-stack? #f)
       (set! subtree stx-trace))
     
     (define/public (disable-subtree-explore)
@@ -571,7 +581,7 @@
     (define/public (set-current-stack s)
       (send next-button enable #f)
       (send previous-button enable #t)
-      (set-explore-stack #t)
+      (set! new-stack? #t)
       (set! stack-index 0)
       (set! stack s))
     
@@ -591,9 +601,12 @@
          (add-syntax (sub1 step))]))
     
     (define/private (update-trace-view-backward)
-      (when (= step 1) (send previous-button enable #f))
-      (set! histories (take histories (sub1 (length histories))))
-      (update-view-text (list-ref histories (sub1 step)) #t))
+      (set! step (sub1 step))
+      (if (= step 0)
+          (send previous-button enable #f)
+          (send previous-button enable #t))
+      (set! histories (take histories (add1 step)))
+      (update-view-text (list-ref histories step) #t))
     
     ;; Initialize
     (super-new)

@@ -180,8 +180,9 @@
         (send browser disable-subtree-explore)
         (let ([stx-trace (and selected-syntax (syntax-property selected-syntax 'has-history))])
           (when stx-trace
+            (send browser set-explore-stack #f)
             (send browser explore-subtree stx-trace))))
-      (send browser set-explore-stack #f)
+      ;(send browser set-explore-stack #f)
       (when (identifier? selected-syntax)
         (let ([found (member selected-syntax (hash-keys var-table) bound-identifier=?)])
           (when found
@@ -190,10 +191,12 @@
                 [(null? raw-val)
                  (void)]
                 [(list? raw-val)
+                 (printf "set-current-stack ...\n")
                  (send browser set-current-stack raw-val)
                  (for ([r (in-list ranges)])
                    (restyle-range selected-syntax r underline-d #f))]
                 [else
+                 (printf "id entered, explore-stack=~a\n" (send browser get-explore-stack))
                  (for ([id (in-list (send/i range range<%> get-identifier-list))])
                    (when (free-identifier=? selected-syntax id)
                      (display-id-value id raw-val (hash-ref values-displayed id #f))
