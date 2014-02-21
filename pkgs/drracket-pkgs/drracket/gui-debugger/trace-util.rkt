@@ -25,20 +25,23 @@
             [context (cons (continuation-mark-set-first (current-continuation-marks) 'stack null) exp)] 
             [new-ftree (attach-stack-info (traced-value-trace fun) context)]
             [traced-res (traced-value res (dtree 'app (atree new-ftree
-                                                             (map (lambda (a) (when (traced-value? a) (traced-value-trace a))) args))
+                                                             (map (lambda (a) (if (traced-value? a) (traced-value-trace a) a)) args))
                                                  (dtree 'lf res #f)))])
        (if (traced-value? res)
            (traced-value (traced-value-val res)
-                         (dtree 'app (atree new-ftree (map traced-value-trace args)) (traced-value-trace res)))
+                         (dtree 'app (atree new-ftree (map (lambda (a) (if (traced-value? a) (traced-value-trace a) a)) args)) (traced-value-trace res)))
            (traced-res)))]
     [else
      (let* ([params (map (lambda (a) (if (traced-value? a) (traced-value-val a) a)) args)]
-            [res (apply fun params)]
+            [raw-res (apply fun params)]
+            [res (if (traced-value? raw-res) (traced-value-val raw-res) raw-res)]
             [context (append (continuation-mark-set-first #f 'inspect null) (list exp))])
-       (if (to-track? args)
-           (traced-value res (dtree 'app (atree (dtree 'lfl (cons fun context) #f) (map (lambda (a) (when (traced-value? a) (traced-value-trace a))) args))
-                                    (dtree 'lf res #f)))
-           (traced-value res (dtree 'lf res #f))))]))
+       (if (traced-value? raw-res)
+           (traced-value res (dtree 'app (atree (dtree 'lfl (cons fun context) #f) (map (lambda (a) (when (traced-value? a) (traced-value-trace a))) args)) (traced-value-trace raw-res)))
+           (if (to-track? args)
+               (traced-value res (dtree 'app (atree (dtree 'lfl (cons fun context) #f) (map (lambda (a) (when (traced-value? a) (traced-value-trace a))) args))
+                                        (dtree 'lf res #f)))
+               (traced-value res (dtree 'lf res #f)))))]))
 
 (define (attach-stack-info tree context)
   (dtree (dtree-label tree) (cons (dtree-node tree) context) (dtree-rtree tree)))

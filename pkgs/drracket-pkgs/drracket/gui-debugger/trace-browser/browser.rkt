@@ -549,7 +549,6 @@
              (set! histories (append histories (list current-trace))))
            (set! lf-view? #f)
            (let ([fnode (dtree-node (atree-ftree node))]
-                 [args (map dtree-node (atree-ptree node))]
                  [res (get-trace-result (dtree-rtree current-trace))])
              (cond
                [(equal? (dtree-label (atree-ftree node)) 'lfl)

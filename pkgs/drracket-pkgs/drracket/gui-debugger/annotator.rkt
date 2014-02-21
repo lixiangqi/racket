@@ -314,7 +314,11 @@
               (hash-set! argtable (syntax-position function-stx) arg-stxes)
               (quasisyntax/loc clause
                 (arg-list
-                 (let ([arg-values (map (lambda (x) (#,traced-value-val (x))) (list #,@debug-info-stx))]
+                 (let ([arg-values (map (lambda (x)
+                                          (if (#,traced-value? (x))
+                                              (#,traced-value-val (x))
+                                              x))
+                                        (list #,@debug-info-stx))]
                        [captured (continuation-mark-set-first #f 'stack null)]
                        [var-table (make-hasheq)])
                    (unless (empty? '#,new-bound-vars)

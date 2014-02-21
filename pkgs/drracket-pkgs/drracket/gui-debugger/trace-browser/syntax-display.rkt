@@ -191,7 +191,7 @@
                  [(null? raw-val)
                   (void)]
                  [(list? raw-val)
-                  (send browser set-current-stack raw-val)
+                  (send browser set-current-stack (reverse raw-val))
                   (for ([r (in-list ranges)])
                     (restyle-range selected-syntax r underline-d #f))]
                  [else

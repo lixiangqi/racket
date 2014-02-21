@@ -894,7 +894,7 @@
         (define/public (update-logs exp val num label inspect-stx ccm fun-traces)
           (define new-val val)
           (when (equal? (dtree-label (traced-value-trace val)) 'lf)
-            (let* ([stack (reverse (continuation-mark-set-first (current-continuation-marks) 'stack null))]
+            (let* ([stack (reverse (continuation-mark-set-first ccm 'stack null))]
                    [new-trace (attach-stack-info (traced-value-trace val) stack)])
               (set! new-val (traced-value (traced-value-val val) new-trace))))
           (send (send (get-frame) get-trace-button) enable #t)
